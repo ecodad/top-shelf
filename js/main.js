@@ -1,5 +1,5 @@
 import { World } from './physics.js';
-import { DRINKS, BOX, buildSprites, loadArtOverrides } from './drinks.js';
+import { DRINKS, PROPS, BOX, buildSprites, buildPropSprites, loadArtOverrides } from './drinks.js';
 import { STAGES, COMING_SOON, COIN, rng } from './stages.js';
 import { Sound } from './audio.js';
 
@@ -22,6 +22,7 @@ const canvas = $('#game');
 const ctx = canvas.getContext('2d');
 const sound = new Sound();
 const sprites = buildSprites(3);
+const propSprites = buildPropSprites(3);
 
 // ---------- save ----------
 
@@ -129,6 +130,13 @@ function paintStatic() {
   const c = bg.getContext('2d');
   c.scale(V.dpr, V.dpr);
   stage().paintBackdrop(c, V);
+  const img = stage().backdropImg;
+  if (img) {
+    // Cover the game column, anchored to the top so the skyline stays behind the order rail.
+    const k = Math.max(V.h / img.naturalHeight, V.gw / img.naturalWidth);
+    const iw = img.naturalWidth * k, ih = img.naturalHeight * k;
+    c.drawImage(img, V.cx - iw / 2, 0, iw, ih);
+  }
   paintTable(c);
 }
 
@@ -235,10 +243,19 @@ function startLevel(n = G.level) {
   G.shakeCd = 0; G.shakeFx = 0; G.dangerHold = 0; G.serveGate = 0;
   G.world = new World(T.W, T.L);
   G.world.onMerge = onMerge;
-  G.world.onImpact = (speed, a) => { if (speed > 30) sound.clink(speed / 230, a.tier); };
+  G.world.onImpact = (speed, a, b) => {
+    if (speed <= 30) return;
+    if (a.fixed || (b && b.fixed)) sound.knock(speed / 230);
+    else sound.clink(speed / 230, a.tier);
+  };
+  // Obstacles get unique negative drink numbers so they can never merge.
+  (lv.props || []).forEach((p, i) => G.world.add({
+    tier: -1 - i, kind: p.kind, x: p.x, y: p.y, r: PROPS[p.kind].r, fixed: true, born: -9,
+  }));
   G.orderIdx = 0; G.shownIdx = 0;
   G.danger = 0; G.launches = 0; G.stageCoins = 0;
-  G.fx = []; G.banner = null; G.tAnim = null; G.clearAt = 0;
+  G.fx = []; G.tAnim = null; G.clearAt = 0;
+  G.banner = { text: `LEVEL ${G.level + 1}`, sub: lv.note || `${lv.orders.length} orders to fill`, t: 0, dur: 1.7 };
   G.held = null; G.queued = false; G.cooldown = 0.3; G.aimX = 50;
   G.next = deal();
   G.mode = 'play';
@@ -250,12 +267,13 @@ function startLevel(n = G.level) {
 // Give the whole bar a jolt: every drink hops toward the player and sideways, then
 // settles back in a new arrangement. The way to free a glass stuck between two others.
 function shake() {
-  if (G.mode !== 'play' || G.shakes <= 0 || G.shakeCd > 0 || !G.world.bodies.length) return;
+  if (G.mode !== 'play' || G.shakes <= 0 || G.shakeCd > 0 || !G.world.bodies.some((b) => !b.fixed)) return;
   G.shakes--;
   G.shakeCd = 1.0;
   G.shakeFx = 0.45;
   G.dangerHold = 1.8;
   for (const b of G.world.bodies) {
+    if (b.fixed) continue;
     b.sliding = false;
     b.vy += 110 + Math.random() * 130;
     b.vx += (Math.random() - 0.5) * 300;
@@ -744,9 +762,17 @@ function drawAim() {
   ctx.restore();
 }
 
+function drawProp(b) {
+  const p = proj(b.x, b.y), sp = propSprites[b.kind], k = (b.r * V.ppu * p.s) / BOX.fr;
+  ctx.fillStyle = 'rgba(0,0,0,0.4)';
+  ctx.beginPath(); ctx.ellipse(p.x, p.y + 27 * k, 66 * k, 19 * k, 0, 0, 7); ctx.fill();
+  ctx.drawImage(sp, p.x - BOX.ax * k, p.y - BOX.ay * k, BOX.w * k, BOX.h * k);
+}
+
 function drawBodies() {
   const list = G.world.bodies.slice().sort((a, b) => a.y - b.y);
   for (const b of list) {
+    if (b.fixed) { drawProp(b); continue; }
     const tau = G.time - b.born;
     const pop = tau < 0.28 ? 1 + 0.2 * Math.sin((tau / 0.28) * Math.PI) : 1;
     drawDrink(b.tier, b.x, b.y, b.r, pop, clamp(b.vx * 0.0035, -0.22, 0.22));
@@ -798,7 +824,7 @@ function drawDanger() {
 }
 
 function drawHint() {
-  if (G.mode !== 'play' || G.launches >= 3) return;
+  if (G.mode !== 'play' || G.level !== 0 || G.launches >= 3 || G.banner) return;
   const u = V.u, y = lerp(V.farY, V.nearY, 0.5);
   ctx.globalAlpha = G.launches === 2 ? 0.55 : 0.95;
   label('Drag to aim, let go to slide', V.cx, y, 16 * u, '#ffffff', 4.5 * u, 800);
@@ -845,7 +871,7 @@ function update(dt) {
     let over = false;
     if (G.dangerHold <= 0 && G.mode === 'play') for (const b of G.world.bodies) {
       // Only a drink that has come to rest past the line counts; one drifting through does not.
-      if (!b.sliding && b.age > 1.1 && b.y + b.r > T.FAIL && Math.hypot(b.vx, b.vy) < 30) { over = true; break; }
+      if (!b.fixed && !b.sliding && b.age > 1.1 && b.y + b.r > T.FAIL && Math.hypot(b.vx, b.vy) < 30) { over = true; break; }
     }
     if (over) {
       G.danger += dt;
@@ -979,11 +1005,17 @@ if (!standalone && /iPhone|iPad|iPod/.test(navigator.userAgent)) $('#a2hs').hidd
 layout();
 toTitle();
 requestAnimationFrame(frame);
-loadArtOverrides(sprites);
+loadArtOverrides(sprites, propSprites).then((art) => {
+  const file = art && art.stages && art.stages[stage().id] && art.stages[stage().id].backdrop;
+  if (!file) return;
+  const img = new Image();
+  img.onload = () => { stage().backdropImg = img; paintStatic(); };
+  img.src = 'assets/' + file;
+});
 
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
   navigator.serviceWorker.register('sw.js').catch(() => {});
 }
 
 // Handy for testing from the console.
-window.__topshelf = { tick: update, STAGES, G, T, V: () => V, DRINKS, sprites, save, launchAt(x) { G.aimX = x; launch(); }, startLevel, shake, sound };
+window.__topshelf = { tick: update, STAGES, G, T, V: () => V, DRINKS, sprites, save, launchAt(x) { G.aimX = x; launch(); }, startLevel, shake, sound, propSprites };

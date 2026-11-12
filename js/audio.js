@@ -154,6 +154,18 @@ export class Sound {
     this._noise(this.sfxBus, t + 0.75, 0.5, 0.12, 'lowpass', 500);
   }
 
+  // A drink hitting an obstacle: duller and lower than glass on glass.
+  knock(strength = 0.6) {
+    if (!this.ready || !this.sfx) return;
+    const t = this.now;
+    if (t - this._lastClink < 0.045) return;
+    this._lastClink = t;
+    const v = 0.22 * Math.min(1, strength);
+    this._tone(this.sfxBus, 'triangle', 620, t, 0.16, v, { to: 410 });
+    this._tone(this.sfxBus, 'sine', 1480, t, 0.1, v * 0.5);
+    this._noise(this.sfxBus, t, 0.02, v * 0.5, 'bandpass', 1800, 1);
+  }
+
   rattle() {
     if (!this.ready || !this.sfx) return;
     const t = this.now;

@@ -515,6 +515,116 @@ const DRAW = {
   },
 };
 
+// ---------- bar obstacles ----------
+// Things that sit on the bar and never move. Drinks bounce off them.
+
+export const PROPS = {
+  shaker: { name: 'cocktail shaker', r: 5.6 },
+  lantern: { name: 'candle lantern', r: 6.2 },
+  bucket: { name: 'ice bucket', r: 9.6 },
+};
+
+const STEEL = ['#8c9bb0', '#eef3f9', '#b9c5d4', '#f8fbff', '#93a2b6'];
+const BRASS = ['#a9772a', '#f7dc8c', '#c99a3c', '#fbe9ae', '#9a6a22'];
+
+function metal(c, x0, x1, tones) {
+  const g = c.createLinearGradient(x0, 0, x1, 0);
+  tones.forEach((t, i) => g.addColorStop(i / (tones.length - 1), t));
+  return g;
+}
+
+function solid(c, prof, fill, o = {}) {
+  const d = dense(prof), rimK = o.rimK ?? 0.2, baseK = o.baseK ?? 0.16;
+  c.lineJoin = 'round';
+  bodyPath(c, d, rimK, baseK);
+  c.fillStyle = fill; c.fill();
+  c.lineWidth = 5; c.strokeStyle = INK; c.stroke();
+  if (o.rim) {
+    c.beginPath();
+    c.ellipse(CX, d[0][1], d[0][0] - 1, (d[0][0] - 1) * rimK, 0, 0, Math.PI * 2);
+    c.fillStyle = o.rim; c.fill();
+    c.lineWidth = 3.5; c.strokeStyle = INK; c.stroke();
+  }
+  return d;
+}
+
+function shine(c, x, y0, y1, w = 6) {
+  c.beginPath(); c.moveTo(x, y0); c.lineTo(x, y1);
+  c.strokeStyle = 'rgba(255,255,255,0.7)'; c.lineWidth = w; c.lineCap = 'round'; c.stroke();
+}
+
+const DRAW_PROP = {
+  shaker(c) {
+    solid(c, [[64, 112, 1], [52, 218, 1]], metal(c, 36, 164, STEEL));
+    solid(c, [[26, 66], [44, 74], [60, 92], [64, 112, 1]], metal(c, 36, 164, STEEL), { rim: '#dfe7f1' });
+    solid(c, [[24, 40, 1], [26, 66, 1]], metal(c, 76, 124, STEEL), { rim: '#f3f7fb' });
+    shine(c, 56, 126, 204, 7);
+    c.strokeStyle = 'rgba(27,31,69,0.35)'; c.lineWidth = 2.5;
+    c.beginPath(); c.ellipse(CX, 126, 62, 12, 0, 0.15, Math.PI - 0.15); c.stroke();
+  },
+
+  lantern(c) {
+    const glow = c.createRadialGradient(100, 150, 4, 100, 150, 96);
+    glow.addColorStop(0, 'rgba(255,214,102,0.75)');
+    glow.addColorStop(1, 'rgba(255,214,102,0)');
+    c.fillStyle = glow;
+    c.fillRect(0, 50, 200, 200);
+    solid(c, [[58, 198, 1], [62, 218, 1]], metal(c, 38, 162, BRASS), { rim: '#f7dc8c' });
+    rr(c, 84, 150, 32, 50, 5);
+    c.fillStyle = '#fff3d6'; c.fill();
+    c.lineWidth = 3.5; c.strokeStyle = INK; c.stroke();
+    flame(c, 100, 150, 38);
+    const d = dense([[44, 98], [60, 142], [54, 198, 1]]);
+    bodyPath(c, d, 0.2, 0.16);
+    c.fillStyle = 'rgba(255,240,190,0.32)'; c.fill();
+    c.lineWidth = 5; c.strokeStyle = INK; c.lineJoin = 'round'; c.stroke();
+    shine(c, 62, 124, 184, 6);
+    solid(c, [[18, 76, 1], [46, 98, 1]], metal(c, 54, 146, BRASS), { rim: '#f7dc8c' });
+    c.beginPath(); c.arc(100, 64, 13, 0, 7);
+    c.strokeStyle = INK; c.lineWidth = 9; c.stroke();
+    c.strokeStyle = '#e8c05a'; c.lineWidth = 4; c.stroke();
+  },
+
+  bucket(c) {
+    for (const x of [26, 174]) {
+      c.beginPath(); c.arc(x, 150, 13, 0, 7);
+      c.strokeStyle = INK; c.lineWidth = 9; c.stroke();
+      c.strokeStyle = '#cdd7e3'; c.lineWidth = 4; c.stroke();
+    }
+    solid(c, [[78, 120, 1], [60, 218, 1]], metal(c, 22, 178, STEEL), { rim: '#7f8ea3' });
+    // everything that pokes out of the bucket is clipped to "above the front rim"
+    c.save();
+    c.beginPath();
+    c.rect(0, 0, 200, 120);
+    c.ellipse(CX, 120, 76, 76 * 0.2, 0, 0, Math.PI * 2);
+    c.clip();
+    c.save();
+    c.translate(118, 132);
+    c.rotate(0.3);
+    rr(c, -9, -116, 18, 64, 6);
+    c.fillStyle = '#1f6b3a'; c.fill();
+    c.lineWidth = 4.5; c.strokeStyle = INK; c.stroke();
+    rr(c, -21, -62, 42, 90, 15);
+    c.fillStyle = '#1f6b3a'; c.fill(); c.stroke();
+    rr(c, -12, -122, 24, 30, 7);
+    c.fillStyle = '#f2c94c'; c.fill(); c.stroke();
+    c.beginPath(); c.moveTo(-11, -46); c.lineTo(-11, -6);
+    c.strokeStyle = 'rgba(255,255,255,0.55)'; c.lineWidth = 5; c.lineCap = 'round'; c.stroke();
+    c.restore();
+    for (const [x, y, s, r] of [[52, 112, 30, 0.3], [84, 104, 30, -0.2], [70, 124, 28, 0.6], [148, 116, 30, -0.4], [104, 126, 28, 0.2], [132, 128, 26, 0.5]]) {
+      c.save(); c.translate(x, y); c.rotate(r);
+      rr(c, -s / 2, -s / 2, s, s, s * 0.22);
+      c.fillStyle = '#e8f6ff'; c.fill();
+      c.lineWidth = 3.5; c.strokeStyle = INK; c.stroke();
+      c.restore();
+    }
+    c.restore();
+    c.beginPath(); c.ellipse(CX, 120, 78, 78 * 0.2, 0, 0, Math.PI);
+    c.strokeStyle = INK; c.lineWidth = 5; c.stroke();
+    shine(c, 44, 140, 204, 8);
+  },
+};
+
 // ---------- sprites ----------
 
 function bounds(cv) {
@@ -579,43 +689,58 @@ export function buildSprites(ss = 3) {
   });
 }
 
-// Optional swap-in art: assets/art.json lists PNGs that replace the built-in drawings.
-// Each image is trimmed to its visible pixels and stood on the same footprint, so no
-// hand-tuning is needed per image.
-export async function loadArtOverrides(sprites, ss = 3) {
+export function buildPropSprites(ss = 3) {
+  const out = {};
+  for (const kind of Object.keys(PROPS)) {
+    const cv = document.createElement('canvas');
+    cv.width = BOX.w * ss; cv.height = BOX.h * ss;
+    const c = cv.getContext('2d');
+    c.scale(ss, ss);
+    DRAW_PROP[kind](c);
+    out[kind] = finish(sticker(cv, 4.5 * ss), ss);
+  }
+  return out;
+}
+
+// Stand an image on the standard footprint: trim it to its visible pixels, scale it so
+// it is as wide as the footprint (or as tall as the box allows), and sit its base down.
+async function spriteFromImage(file, widthK, edge, ss) {
+  const img = new Image();
+  img.src = 'assets/' + file;
+  await img.decode();
+  const raw = document.createElement('canvas');
+  raw.width = img.naturalWidth; raw.height = img.naturalHeight;
+  raw.getContext('2d').drawImage(img, 0, 0);
+  const b = bounds(raw);
+  const baseY = 226, topMin = 8;
+  const k = Math.min((2 * BOX.fr * widthK) / b.w, (baseY - topMin) / b.h);
+  const cv = document.createElement('canvas');
+  cv.width = BOX.w * ss; cv.height = BOX.h * ss;
+  const c = cv.getContext('2d');
+  c.scale(ss, ss);
+  c.imageSmoothingQuality = 'high';
+  c.drawImage(raw, b.x, b.y, b.w, b.h, BOX.ax - b.w * k / 2, baseY - b.h * k, b.w * k, b.h * k);
+  return finish(edge ? sticker(cv, 4.5 * ss) : cv, ss);
+}
+
+// Optional swap-in art: assets/art.json lists PNGs that replace the built-in drawings
+// of drinks ("drinks") and obstacles ("props"). Returns the parsed file, or null.
+export async function loadArtOverrides(sprites, props, ss = 3) {
   let art;
   try {
     const res = await fetch('assets/art.json', { cache: 'no-cache' });
-    if (!res.ok) return 0;
+    if (!res.ok) return null;
     art = await res.json();
-  } catch { return 0; }
-  const list = art.drinks || {};
-  let n = 0;
-  await Promise.all(DRINKS.map(async (d, i) => {
-    const entry = list[d.id];
+  } catch { return null; }
+  const jobs = [];
+  const want = (entry, put) => {
     if (!entry) return;
     const file = typeof entry === 'string' ? entry : entry.file;
     const widthK = (typeof entry === 'object' && entry.width) || 1.0;
-    try {
-      const img = new Image();
-      img.src = 'assets/' + file;
-      await img.decode();
-      const raw = document.createElement('canvas');
-      raw.width = img.naturalWidth; raw.height = img.naturalHeight;
-      raw.getContext('2d').drawImage(img, 0, 0);
-      const b = bounds(raw);
-      const baseY = 226, topMin = 8;
-      const k = Math.min((2 * BOX.fr * widthK) / b.w, (baseY - topMin) / b.h);
-      const cv = document.createElement('canvas');
-      cv.width = BOX.w * ss; cv.height = BOX.h * ss;
-      const c = cv.getContext('2d');
-      c.scale(ss, ss);
-      c.imageSmoothingQuality = 'high';
-      c.drawImage(raw, b.x, b.y, b.w, b.h, BOX.ax - b.w * k / 2, baseY - b.h * k, b.w * k, b.h * k);
-      const edged = art.sticker === false ? cv : sticker(cv, 4.5 * ss);
-      sprites[i] = finish(edged, ss);
-      n++;
-    } catch { /* keep the built-in drawing */ }
-  }));
-  return n;
+    jobs.push(spriteFromImage(file, widthK, art.sticker !== false, ss).then(put).catch(() => { /* keep the built-in drawing */ }));
+  };
+  DRINKS.forEach((d, i) => want((art.drinks || {})[d.id], (cv) => { sprites[i] = cv; }));
+  for (const kind of Object.keys(PROPS)) want((art.props || {})[kind], (cv) => { props[kind] = cv; });
+  await Promise.all(jobs);
+  return art;
 }

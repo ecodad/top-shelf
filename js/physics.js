@@ -1,6 +1,7 @@
 // Tiny position-based physics for round drink bases sliding on a bar top.
 // Table space: x in [0, W], y in [0, L]; y = 0 is the far end, y = L is the player's end.
 // A gentle pull toward the far end keeps the pile packed, like a bar that slopes away from you.
+// Bodies marked `fixed` are obstacles: they never move, never merge, and drinks bounce off them.
 
 export class World {
   constructor(W, L, opt = {}) {
@@ -10,6 +11,7 @@ export class World {
     this.gravity = opt.gravity ?? 160;
     this.damp = opt.damp ?? 1.4;
     this.rest = opt.rest ?? 0.3;
+    this.restFixed = opt.restFixed ?? 0.55;
     this.maxSpeed = 250;
     this.onMerge = null;   // (a, b) => new body spec or null
     this.onImpact = null;  // (speed, a, b|null)
@@ -45,6 +47,10 @@ export class World {
     const k = Math.exp(-this.damp * h);
 
     for (const b of B) {
+      if (b.fixed) {
+        b.px = b.x; b.py = b.y; b.vx = b.vy = b.pvx = b.pvy = 0;
+        continue;
+      }
       if (!b.sliding) {
         b.vy -= this.gravity * h;
         b.vx *= k;
@@ -65,7 +71,7 @@ export class World {
         if (a.dead) continue;
         for (let j = i + 1; j < n; j++) {
           const b = B[j];
-          if (b.dead) continue;
+          if (b.dead || (a.fixed && b.fixed)) continue;
           const dx = b.x - a.x, dy = b.y - a.y, rr = a.r + b.r;
           const d2 = dx * dx + dy * dy;
           if (d2 >= rr * rr) continue;
@@ -78,15 +84,19 @@ export class World {
           const nx = dx / d, ny = dy / d, pen = rr - d;
           // A freshly slid drink hits like a heavier puck, so it can knock others aside.
           const ma = a.r * a.r * (a.heavy > 0 ? 2.5 : 1), mb = b.r * b.r * (b.heavy > 0 ? 2.5 : 1);
-          const wa = mb / (ma + mb), wb = ma / (ma + mb);
+          const wa = a.fixed ? 0 : b.fixed ? 1 : mb / (ma + mb), wb = 1 - wa;
           a.x -= nx * pen * wa; a.y -= ny * pen * wa;
           b.x += nx * pen * wb; b.y += ny * pen * wb;
+          if (a.fixed || b.fixed) {
+            // A drink sitting dead centre on an obstacle would balance there forever.
+            if (Math.abs(nx) < 0.03) (a.fixed ? b : a).x += (Math.random() - 0.5) * 0.06;
+          }
           if (it === 0) contacts.push([a, b, nx, ny, wa, wb]);
           a.sliding = b.sliding = false;
         }
       }
       for (const b of B) {
-        if (b.dead) continue;
+        if (b.dead || b.fixed) continue;
         if (b.x < b.r) b.x = b.r;
         else if (b.x > W - b.r) b.x = W - b.r;
         if (b.y < b.r) { b.y = b.r; b.sliding = false; }
@@ -95,7 +105,7 @@ export class World {
     }
 
     for (const b of B) {
-      if (b.dead) continue;
+      if (b.dead || b.fixed) continue;
       b.vx = (b.x - b.px) / h;
       b.vy = (b.y - b.py) / h;
       // Squeezed-out drinks should scoot, not teleport.
@@ -103,12 +113,12 @@ export class World {
       if (sp > this.maxSpeed) { b.vx *= this.maxSpeed / sp; b.vy *= this.maxSpeed / sp; }
     }
 
-    // A little bounce so glasses clink instead of thudding.
-    const e = this.rest;
+    // A little bounce so glasses clink instead of thudding; obstacles are springier.
     for (const [a, b, nx, ny, wa, wb] of contacts) {
       if (a.dead || b.dead) continue;
       const pre = (b.pvx - a.pvx) * nx + (b.pvy - a.pvy) * ny;
       if (pre > -22) continue;
+      const e = a.fixed || b.fixed ? this.restFixed : this.rest;
       const cur = (b.vx - a.vx) * nx + (b.vy - a.vy) * ny;
       const dv = -e * pre - cur;
       if (dv > 0) {
@@ -117,8 +127,9 @@ export class World {
       }
       this.onImpact?.(-pre, a, b);
     }
+    const e = this.rest;
     for (const b of B) {
-      if (b.dead) continue;
+      if (b.dead || b.fixed) continue;
       if (b.x <= b.r + 1e-6 && b.pvx < -22) { b.vx = -e * b.pvx; this.onImpact?.(-b.pvx * 0.6, b, null); }
       else if (b.x >= W - b.r - 1e-6 && b.pvx > 22) { b.vx = -e * b.pvx; this.onImpact?.(b.pvx * 0.6, b, null); }
       if (b.y <= b.r + 1e-6 && b.pvy < -22) { b.vy = -e * 0.6 * b.pvy; this.onImpact?.(-b.pvy * 0.6, b, null); }

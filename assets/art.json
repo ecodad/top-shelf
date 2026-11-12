@@ -1,4 +1,21 @@
 {
-  "sticker": true,
-  "drinks": {}
+  "sticker": false,
+  "drinks": {
+    "tequila_shot": "drinks/tequila_shot.png",
+    "whiskey_neat": "drinks/whiskey_neat.png",
+    "gin_tonic": "drinks/gin_tonic.png",
+    "mojito": "drinks/mojito.png",
+    "cosmopolitan": "drinks/cosmopolitan.png",
+    "margarita": "drinks/margarita.png",
+    "blue_hawaiian": "drinks/blue_hawaiian.png",
+    "pina_colada": "drinks/pina_colada.png",
+    "mai_tai": "drinks/mai_tai.png",
+    "scorpion_bowl": "drinks/scorpion_bowl.png"
+  },
+  "props": {},
+  "stages": {
+    "nyc": {
+      "backdrop": "stages/nyc/backdrop.jpg"
+    }
+  }
 }

@@ -107,12 +107,37 @@ burning in a lime shell at the centre, three long striped straws fanning out in 
 yellow and blue, a red cherry and a paper umbrella. The biggest, most festive drink.
 ```
 
+## Bar obstacles (optional)
+
+Obstacles sit on the bar and never move; drinks bounce off them. They are drawn in code
+now. To replace one, use the same style block and rules as the drinks, save into
+`assets/props/`, and list it under `"props"` in `assets/art.json`.
+
+**Cocktail shaker** - `shaker.png`
+```
+[style block] The object: a polished stainless-steel cobbler cocktail shaker with its
+cap on, standing upright, with bright reflections. Not a drink; no glass.
+```
+
+**Candle lantern** - `lantern.png`
+```
+[style block] The object: a small brass table lantern with a glass chimney and a lit
+candle glowing warm yellow inside, a ring handle on top. Not a drink.
+```
+
+**Ice bucket** - `bucket.png`
+```
+[style block] The object: a round stainless-steel ice bucket with ring handles, heaped
+with ice cubes, with the neck of a green champagne bottle with gold foil sticking out
+at an angle. Not a drink.
+```
+
 ## Stage 1 backdrop (optional)
 
 Portrait, 1170 x 2532 (or any 9:19.5 image). The game draws the bar top, the order
 tickets and all the controls over it, so keep the middle and lower two thirds calm.
 
-`assets/stages/nyc/backdrop.png` (not wired in yet; tell Claude when you have one)
+`assets/stages/nyc/backdrop.jpg`, listed under `"stages"` in `assets/art.json`
 ```
 Stylised cartoon night-time view from a Manhattan rooftop bar, portrait orientation.
 Deep navy sky fading to purple and a warm magenta glow at the horizon, a few stars,

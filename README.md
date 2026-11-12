@@ -29,6 +29,9 @@ directly from disk will not load the scripts.
 - Regular deals are always smaller than the smallest drink on the level's order list.
   About one slide in twenty-two is a bigger drink instead.
 - A freshly slid drink hits like a heavy puck, so an off-centre hit knocks others aside.
+- Obstacles (a cocktail shaker, a candle lantern, an ice bucket) sit on the bar from
+  level 2 on. They never move and drinks bounce off them, so they block lanes and
+  take up room.
 - Shake (three per level) jolts every drink toward you and sideways. They settle in a
   new arrangement, which is the way to free a glass stuck between two others.
 - If a drink comes to rest past the dashed line and stays there for three seconds, the
@@ -45,7 +48,8 @@ directly from disk will not load the scripts.
 | `js/stages.js` | Stage themes: orders, backdrop, table colours, song |
 | `js/audio.js` | Synthesised sound effects and music |
 | `sw.js`, `manifest.webmanifest`, `icons/` | Home-screen install and offline support |
-| `assets/art.json` | Lists PNGs that replace the built-in drink drawings |
+| `assets/art.json` | Lists the images in use: drinks, obstacles, stage backdrop |
+| `assets/drinks/`, `assets/stages/` | Generated drink art (512 px) and the stage backdrop |
 | `docs/IMAGE_PROMPTS.md` | Prompts for generating swap-in art |
 | `tools/icon.html` | Renders the app icon from the game's own art |
 
@@ -53,7 +57,9 @@ directly from disk will not load the scripts.
 
 - Drink sizes: `DRINKS` in `js/drinks.js`.
 - Table length and launch speed: the constants at the top of `js/main.js`.
-- Levels per stage (order lists, where the "full" line sits, shakes): `STAGES` in `js/stages.js`.
+- Levels per stage (order lists, where the "full" line sits, obstacles, shakes): `STAGES` in `js/stages.js`.
+- Obstacle sizes: `PROPS` in `js/drinks.js`. Leave gaps between obstacles and walls either
+  wide enough for the level's biggest drink or closed; a narrow gap traps drinks.
 - Coins paid per drink: `COIN` in `js/stages.js`.
 - What gets dealt: `deal()` in `js/main.js`.
 

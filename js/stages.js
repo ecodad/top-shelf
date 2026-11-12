@@ -85,12 +85,18 @@ export const STAGES = [
     // "fail" is where the "bar is full" line sits (0 = far end, 132 = player's end):
     // a smaller number means less room, which is the main difficulty dial besides
     // bigger drinks. Optional per level: shakes (default 3).
+    // Optional per level: props (obstacles on the bar: kind is shaker, lantern or bucket,
+    // x across 0-100, y from the far end), note (shown under the level banner).
     levels: [
       { orders: [2, 2, 3, 2, 3], fail: 92 },
-      { orders: [3, 2, 3, 4, 3, 4], fail: 88 },
-      { orders: [3, 4, 3, 5, 4, 3], fail: 82 },
-      { orders: [4, 3, 5, 4, 5, 3, 5], fail: 72 },
-      { orders: [4, 5, 4, 6, 5, 4, 6], fail: 62 },
+      { orders: [3, 2, 3, 4, 3, 4], fail: 88, note: 'A shaker is in the way',
+        props: [{ kind: 'shaker', x: 50, y: 46 }] },
+      { orders: [3, 4, 3, 5, 4, 3], fail: 84, note: 'Mind the ice bucket',
+        props: [{ kind: 'bucket', x: 32, y: 40 }] },
+      { orders: [4, 3, 5, 4, 5, 3, 5], fail: 80, note: 'Lantern left, shaker right',
+        props: [{ kind: 'lantern', x: 24, y: 48 }, { kind: 'shaker', x: 72, y: 32 }] },
+      { orders: [4, 5, 4, 6, 5, 4, 6], fail: 82, note: 'A crowded bar tonight',
+        props: [{ kind: 'bucket', x: 50, y: 34 }, { kind: 'shaker', x: 14, y: 14 }, { kind: 'lantern', x: 86, y: 14 }] },
     ],
     song: JAZZ,
     accent: '#ff4fa3',
