@@ -27,7 +27,23 @@
     position: fixed; z-index: 3; border-radius: 50%; border: 2px solid #ffc93c; padding: 0;
     background: rgba(10, 8, 34, 0.72); color: #fff; font-weight: 900; line-height: 1; letter-spacing: 1px;
   }
-  #btnPause[hidden] { display: none; }
+  #btnPause[hidden], #btnShake[hidden], .btn[hidden] { display: none; }
+  #btnShake {
+    position: fixed; z-index: 3; border-radius: 50%; border: 2px solid #9be7ff; padding: 0;
+    background: rgba(10, 8, 34, 0.78); color: #fff; font: inherit; font-weight: 800; line-height: 1.15;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    box-shadow: 0 0 14px rgba(90, 200, 255, 0.45);
+  }
+  #btnShake b { font-size: 1.25em; color: #9be7ff; }
+  #btnShake:disabled { opacity: 0.4; box-shadow: none; }
+  #btnShake:active { transform: scale(0.94); }
+  .levels { display: flex; justify-content: center; gap: 9px; margin-top: 12px; }
+  .lv {
+    width: 40px; height: 40px; border-radius: 50%; border: 2px solid rgba(255, 255, 255, 0.5); padding: 0;
+    background: rgba(255, 255, 255, 0.1); color: #fff; font: inherit; font-size: 16px; font-weight: 900;
+  }
+  .lv.on { border-color: #ffc93c; background: #ffc93c; color: #2a0f1f; }
+  .lv:disabled { opacity: 0.32; }
 
   .overlay {
     position: fixed; inset: 0; z-index: 5; display: none; flex-direction: column;
@@ -79,6 +95,7 @@
 <body>
 <canvas id="game"></canvas>
 <button id="btnPause" aria-label="Pause" hidden>II</button>
+<button id="btnShake" aria-label="Shake the bar" hidden>Shake</button>
 
 <section id="title" class="overlay show">
   <h1 class="neon">Top Shelf</h1>
@@ -87,6 +104,7 @@
     <div class="k">STAGE 1</div>
     <div class="n" id="stageName"></div>
     <div class="d" id="stageBlurb"></div>
+    <div class="levels" id="levels"></div>
   </div>
   <button id="btnPlay" class="btn primary">Play</button>
   <div class="wallet"><i class="coin"></i><span id="titleCoins">0</span></div>
@@ -97,7 +115,7 @@
 <section id="pause" class="overlay">
   <h2>Paused</h2>
   <button id="btnResume" class="btn primary">Resume</button>
-  <button id="btnRestart" class="btn">Restart stage</button>
+  <button id="btnRestart" class="btn">Restart level</button>
   <button id="btnMusic" class="btn">Music: On</button>
   <button id="btnSfx" class="btn">Sound: On</button>
   <button id="btnQuit" class="btn ghost">Main menu</button>
@@ -112,10 +130,11 @@
 </section>
 
 <section id="clear" class="overlay clear">
-  <h2 class="gold">Stage Clear!</h2>
+  <h2 class="gold" id="clearTitle">Level Clear!</h2>
   <p id="clearInfo"></p>
   <div class="wallet big"><i class="coin"></i><span id="clearCoins">+0</span></div>
-  <button id="btnAgain" class="btn primary">Play again</button>
+  <button id="btnNext" class="btn primary">Next level</button>
+  <button id="btnAgain" class="btn">Replay level</button>
   <button id="btnClearQuit" class="btn ghost">Main menu</button>
   <p class="soon" id="clearSoon"></p>
 </section>

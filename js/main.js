@@ -1,6 +1,6 @@
 import { World } from './physics.js';
 import { DRINKS, BOX, buildSprites, loadArtOverrides } from './drinks.js';
-import { STAGES, COMING_SOON, rng } from './stages.js';
+import { STAGES, COMING_SOON, COIN, rng } from './stages.js';
 import { Sound } from './audio.js';
 
 // Table space: 100 wide, 132 long. y = 0 is the far end; FAIL is the "bar is full" line.
@@ -26,7 +26,7 @@ const sprites = buildSprites(3);
 // ---------- save ----------
 
 function loadSave() {
-  const base = { coins: 0, music: true, sfx: true, cleared: {} };
+  const base = { coins: 0, music: true, sfx: true, cleared: {}, progress: {} };
   try { return Object.assign(base, JSON.parse(localStorage.getItem(SAVE_KEY) || '{}')); }
   catch { return base; }
 }
@@ -40,7 +40,8 @@ sound.sfx = save.sfx;
 // ---------- state ----------
 
 const G = {
-  mode: 'title', stage: 0, world: null,
+  mode: 'title', stage: 0, level: 0, orders: [], minOrder: 2, world: null,
+  shakes: 0, shakeCd: 0, shakeFx: 0, dangerHold: 0, serveGate: 0,
   orderIdx: 0, shownIdx: 0, held: null, next: 0, cooldown: 0, queued: false,
   aimX: 50, aiming: false, pid: -1,
   danger: 0, lastWarn: 0, launches: 0, stageCoins: 0, coinsShown: save.coins,
@@ -50,7 +51,8 @@ let V = null;
 let bg = null;
 
 const stage = () => STAGES[G.stage];
-const targetTier = () => (stage().orders[G.orderIdx] ? stage().orders[G.orderIdx].tier : 99);
+const targetTier = () => (G.orders[G.orderIdx] ? G.orders[G.orderIdx].tier : 99);
+const unlocked = () => Math.min(stage().levels.length - 1, save.progress[stage().id] || 0);
 
 // ---------- layout and projection ----------
 
@@ -88,6 +90,12 @@ function layout() {
   pb.style.top = `${hudY - 1 * u}px`;
   pb.style.width = pb.style.height = `${36 * u}px`;
   pb.style.fontSize = `${13 * u}px`;
+  // Shake sits in the gap beside the far end of the bar, clear of the aiming area.
+  const sb = $('#btnShake');
+  sb.style.left = `${gx + 4 * u}px`;
+  sb.style.top = `${farY + 4 * u}px`;
+  sb.style.width = sb.style.height = `${46 * u}px`;
+  sb.style.fontSize = `${9.5 * u}px`;
   paintStatic();
 }
 
@@ -198,16 +206,15 @@ function paintTable(c) {
 function show(id) {
   for (const el of document.querySelectorAll('.overlay')) el.classList.toggle('show', '#' + el.id === id);
   $('#btnPause').hidden = !(G.mode === 'play' || G.mode === 'clearing');
+  $('#btnShake').hidden = G.mode !== 'play';
 }
 
 function deal() {
-  const t = targetTier();
-  const maxPool = Math.min(3, t - 1);
-  // A rare bigger drink for variety, never as big as the drink on order.
-  if (Math.random() < 0.045) {
-    const big = t >= 7 && Math.random() < 0.25 ? 5 : 4;
-    if (big <= t - 1 && big > maxPool) return big;
-  }
+  // Regular deals stay below the smallest drink on this level's order list,
+  // so everything on an order has to be made by merging.
+  const maxPool = Math.min(3, G.minOrder - 1);
+  // A rare bigger drink for variety. If it happens to match the order, lucky you.
+  if (Math.random() < 0.045) return Math.min(DRINKS.length - 2, maxPool + (Math.random() < 0.2 ? 2 : 1));
   const weights = [34, 30, 22, 14].slice(0, maxPool + 1);
   let roll = Math.random() * weights.reduce((s, v) => s + v, 0);
   for (let i = 0; i < weights.length; i++) {
@@ -217,7 +224,15 @@ function deal() {
   return 0;
 }
 
-function startStage() {
+function startLevel(n = G.level) {
+  G.level = clamp(n, 0, stage().levels.length - 1);
+  const lv = stage().levels[G.level];
+  G.orders = lv.orders.map((tier) => ({ tier, coins: COIN[tier] }));
+  G.minOrder = Math.min(...lv.orders);
+  G.shakes = lv.shakes ?? 3;
+  const fail = lv.fail ?? 92;
+  if (fail !== T.FAIL) { T.FAIL = fail; paintStatic(); }
+  G.shakeCd = 0; G.shakeFx = 0; G.dangerHold = 0; G.serveGate = 0;
   G.world = new World(T.W, T.L);
   G.world.onMerge = onMerge;
   G.world.onImpact = (speed, a) => { if (speed > 30) sound.clink(speed / 230, a.tier); };
@@ -228,7 +243,31 @@ function startStage() {
   G.next = deal();
   G.mode = 'play';
   show(null);
+  syncShake();
   sound.startMusic(stage().song);
+}
+
+// Give the whole bar a jolt: every drink hops toward the player and sideways, then
+// settles back in a new arrangement. The way to free a glass stuck between two others.
+function shake() {
+  if (G.mode !== 'play' || G.shakes <= 0 || G.shakeCd > 0 || !G.world.bodies.length) return;
+  G.shakes--;
+  G.shakeCd = 1.0;
+  G.shakeFx = 0.45;
+  G.dangerHold = 1.8;
+  for (const b of G.world.bodies) {
+    b.sliding = false;
+    b.vy += 110 + Math.random() * 130;
+    b.vx += (Math.random() - 0.5) * 300;
+  }
+  sound.rattle();
+  syncShake();
+}
+
+function syncShake() {
+  const sb = $('#btnShake');
+  sb.innerHTML = `Shake<b>&times;${G.shakes}</b>`;
+  sb.disabled = G.shakes <= 0;
 }
 
 function launch() {
@@ -237,7 +276,7 @@ function launch() {
   const d = DRINKS[G.held.tier];
   G.world.add({
     tier: G.held.tier, x: clamp(G.aimX, d.r, T.W - d.r), y: T.LAUNCH,
-    vx: 0, vy: -LAUNCH_SPEED, r: d.r, sliding: true, born: -9,
+    vx: 0, vy: -LAUNCH_SPEED, r: d.r, sliding: true, heavy: 0.2, born: -9,
   });
   G.held = null;
   G.queued = false;
@@ -261,7 +300,7 @@ function onMerge(a, b) {
     confetti(p.x, p.y, 60);
     return null;
   }
-  if (G.mode === 'play' && tier === targetTier()) {
+  if (G.mode === 'play' && tier === targetTier() && G.time >= G.serveGate) {
     deliver(tier, x, y);
     return null;
   }
@@ -273,9 +312,10 @@ function onMerge(a, b) {
 }
 
 function deliver(tier, x, y) {
-  const idx = G.orderIdx, order = stage().orders[idx];
+  const idx = G.orderIdx, order = G.orders[idx];
   G.orderIdx++;
-  if (G.orderIdx >= stage().orders.length) { G.mode = 'clearing'; G.held = null; G.aiming = false; }
+  G.serveGate = G.time + 0.6;
+  if (G.orderIdx >= G.orders.length) { G.mode = 'clearing'; G.held = null; G.aiming = false; show(null); }
   const p = proj(x, y), rpx = DRINKS[tier].r * V.ppu * p.s, tk = V.cur;
   G.fx.push({
     kind: 'fly', tier, t: 0, dur: 0.75,
@@ -303,18 +343,24 @@ function payout(order, idx) {
   G.banner = { text: 'ORDER UP!', sub: `${DRINKS[order.tier].name}  +${order.coins}`, t: 0, dur: 1.6 };
   G.tAnim = { t: 0, old: idx };
   G.shownIdx = idx + 1;
-  if (idx + 1 >= stage().orders.length) G.clearAt = G.time + 1.7;
+  if (idx + 1 >= G.orders.length) G.clearAt = G.time + 1.7;
 }
 
-function stageClear() {
+function levelClear() {
   G.mode = 'clear';
   G.clearAt = 0;
-  save.cleared[stage().id] = (save.cleared[stage().id] || 0) + 1;
+  const id = stage().id, n = stage().levels.length, last = G.level >= n - 1;
+  save.progress[id] = Math.max(save.progress[id] || 0, Math.min(G.level + 1, n - 1));
+  if (last) save.cleared[id] = (save.cleared[id] || 0) + 1;
   persist();
   sound.stageClear();
-  $('#clearInfo').textContent = `${stage().name}: all ${stage().orders.length} orders served`;
+  $('#clearTitle').textContent = last ? 'Stage Clear!' : `Level ${G.level + 1} Clear!`;
+  $('#clearInfo').textContent = last
+    ? `${stage().name}: all ${n} levels served`
+    : `${stage().name}: ${G.orders.length} orders served`;
   $('#clearCoins').textContent = `+${G.stageCoins.toLocaleString()}`;
-  $('#clearSoon').textContent = `Next stop: ${COMING_SOON[0]} (coming soon)`;
+  $('#btnNext').hidden = last;
+  $('#clearSoon').textContent = last ? `Next stop: ${COMING_SOON[0]} (coming soon)` : '';
   show('#clear');
 }
 
@@ -323,7 +369,7 @@ function lose() {
   G.aiming = false;
   sound.lose();
   const n = G.shownIdx;
-  $('#lostInfo').textContent = n ? `You served ${n} of ${stage().orders.length} orders and kept ${G.stageCoins.toLocaleString()} coins.` : 'No orders served this time.';
+  $('#lostInfo').textContent = n ? `You served ${n} of ${G.orders.length} orders and kept ${G.stageCoins.toLocaleString()} coins.` : 'No orders served this time.';
   show('#lost');
 }
 
@@ -332,8 +378,25 @@ function toTitle() {
   G.world = null;
   G.fx = [];
   G.banner = null;
-  $('#titleCoins').textContent = save.coins.toLocaleString();
+  G.level = unlocked();
+  refreshTitle();
   show('#title');
+}
+
+function refreshTitle() {
+  $('#titleCoins').textContent = save.coins.toLocaleString();
+  const box = $('#levels');
+  box.innerHTML = '';
+  stage().levels.forEach((lv, i) => {
+    const b = document.createElement('button');
+    b.className = 'lv' + (i === G.level ? ' on' : '');
+    b.textContent = String(i + 1);
+    b.disabled = i > unlocked();
+    b.setAttribute('aria-label', `Level ${i + 1}${b.disabled ? ' (locked)' : ''}`);
+    b.addEventListener('click', () => { sound.unlock(); sound.tap(); G.level = i; refreshTitle(); });
+    box.appendChild(b);
+  });
+  $('#btnPlay').textContent = `Play level ${G.level + 1}`;
 }
 
 function pause() {
@@ -511,8 +574,8 @@ function drawHud() {
   ctx.shadowColor = stage().accent; ctx.shadowBlur = 10 * V.dpr;
   label(stage().name.toUpperCase(), tx, p.y + p.h / 2 - 6 * u, 11.5 * u, '#ffe3f1', 0, 800);
   ctx.shadowBlur = 0;
-  const n = stage().orders.length;
-  label(`Order ${Math.min(G.shownIdx + 1, n)} of ${n}`, tx, p.y + p.h / 2 + 9 * u, 10 * u, 'rgba(255,255,255,0.7)', 0, 600);
+  const n = G.orders.length || 1;
+  label(`Level ${G.level + 1}  ·  Order ${Math.min(G.shownIdx + 1, n)} of ${n}`, tx, p.y + p.h / 2 + 9 * u, 10 * u, 'rgba(255,255,255,0.7)', 0, 600);
 }
 
 function drawLadder() {
@@ -600,7 +663,7 @@ function drawTicket(r, order, o) {
 }
 
 function drawOrders() {
-  const u = V.u, orders = stage().orders, n = orders.length;
+  const u = V.u, orders = G.orders, n = orders.length;
   // brass rail
   ctx.lineCap = 'round';
   ctx.strokeStyle = '#8a5f16'; ctx.lineWidth = 5 * u;
@@ -632,7 +695,7 @@ function drawNextBox() {
   rr(ctx, b.x, b.y, b.w, b.h, 14 * u);
   ctx.fillStyle = 'rgba(255,255,255,0.95)'; ctx.fill();
   ctx.lineWidth = 3 * u; ctx.strokeStyle = '#ffc93c'; ctx.stroke();
-  if (G.mode !== 'title' && G.orderIdx < stage().orders.length) drawFit(G.next, b.x + b.w / 2, b.y + b.h / 2, b.w - 24 * u, b.h - 22 * u);
+  if (G.mode !== 'title' && G.orderIdx < G.orders.length) drawFit(G.next, b.x + b.w / 2, b.y + b.h / 2, b.w - 24 * u, b.h - 22 * u);
   label('NEXT', b.x + b.w / 2, b.y + b.h + 13 * u, 14 * u, '#ffffff', 4.5 * u, 900);
 }
 
@@ -765,9 +828,24 @@ function update(dt) {
         if (G.queued) launch();
       }
     }
+    // Serve the ordered drink as soon as one is standing on the bar.
+    if (G.time >= G.serveGate) {
+      const tt = targetTier();
+      let pick = null;
+      for (const b of G.world.bodies) {
+        if (b.tier === tt && !b.sliding && b.age > 0.25 && (!pick || b.y > pick.y)) pick = b;
+      }
+      if (pick) {
+        G.world.bodies = G.world.bodies.filter((b) => b !== pick);
+        deliver(pick.tier, pick.x, pick.y);
+      }
+    }
+    if (G.shakeCd > 0) G.shakeCd -= dt;
+    if (G.dangerHold > 0) G.dangerHold -= dt;
     let over = false;
-    for (const b of G.world.bodies) {
-      if (!b.sliding && b.age > 1.1 && b.y + b.r > T.FAIL) { over = true; break; }
+    if (G.dangerHold <= 0 && G.mode === 'play') for (const b of G.world.bodies) {
+      // Only a drink that has come to rest past the line counts; one drifting through does not.
+      if (!b.sliding && b.age > 1.1 && b.y + b.r > T.FAIL && Math.hypot(b.vx, b.vy) < 30) { over = true; break; }
     }
     if (over) {
       G.danger += dt;
@@ -778,7 +856,7 @@ function update(dt) {
     }
   }
 
-  if (G.mode === 'clearing' && G.clearAt && G.time >= G.clearAt) stageClear();
+  if (G.mode === 'clearing' && G.clearAt && G.time >= G.clearAt) levelClear();
 
   if (G.mode === 'clear' && G.time >= G.fireAt) {
     G.fireAt = G.time + 0.35 + Math.random() * 0.4;
@@ -788,6 +866,7 @@ function update(dt) {
     if (Math.random() < 0.5) confetti(V.cx + (Math.random() - 0.5) * V.gw * 0.6, V.h * 0.3, 24);
   }
 
+  if (G.shakeFx > 0) G.shakeFx -= dt;
   updateFx(dt);
   if (G.banner) { G.banner.t += dt; if (G.banner.t >= G.banner.dur) G.banner = null; }
   if (G.tAnim) { G.tAnim.t += dt; if (G.tAnim.t >= 0.55) G.tAnim = null; }
@@ -796,7 +875,8 @@ function update(dt) {
 }
 
 function render() {
-  ctx.setTransform(V.dpr, 0, 0, V.dpr, 0, 0);
+  const sh = G.shakeFx > 0 ? G.shakeFx / 0.45 : 0;
+  ctx.setTransform(V.dpr, 0, 0, V.dpr, Math.sin(G.time * 95) * 7 * V.u * sh * V.dpr, Math.cos(G.time * 71) * 5 * V.u * sh * V.dpr);
   ctx.drawImage(bg, 0, 0, V.w, V.h);
   drawHud();
   drawLadder();
@@ -857,6 +937,7 @@ window.addEventListener('keydown', (e) => {
     if (e.key === 'ArrowLeft') G.aimX = clamp(G.aimX - 3, 0, T.W);
     else if (e.key === 'ArrowRight') G.aimX = clamp(G.aimX + 3, 0, T.W);
     else if (e.key === ' ') { sound.unlock(); launch(); e.preventDefault(); }
+    else if (e.key === 's') shake();
     else if (e.key === 'Escape' || e.key === 'p') pause();
   } else if (G.mode === 'paused' && (e.key === 'Escape' || e.key === 'p')) resume();
 });
@@ -866,12 +947,14 @@ function tapButton(sel, fn) {
   el.addEventListener('click', () => { sound.unlock(); sound.tap(); fn(); });
 }
 
-tapButton('#btnPlay', startStage);
+tapButton('#btnPlay', () => startLevel(G.level));
+tapButton('#btnShake', shake);
+tapButton('#btnNext', () => startLevel(G.level + 1));
 tapButton('#btnPause', pause);
 tapButton('#btnResume', resume);
-tapButton('#btnRestart', startStage);
-tapButton('#btnRetry', startStage);
-tapButton('#btnAgain', startStage);
+tapButton('#btnRestart', () => startLevel(G.level));
+tapButton('#btnRetry', () => startLevel(G.level));
+tapButton('#btnAgain', () => startLevel(G.level));
 tapButton('#btnQuit', toTitle);
 tapButton('#btnLostQuit', toTitle);
 tapButton('#btnClearQuit', toTitle);
@@ -888,7 +971,7 @@ window.addEventListener('orientationchange', () => setTimeout(layout, 200));
 // ---------- boot ----------
 
 $('#stageName').textContent = stage().name;
-$('#stageBlurb').textContent = `${stage().blurb}. Fill ${stage().orders.length} orders before the bar overflows.`;
+$('#stageBlurb').textContent = `${stage().blurb}. ${stage().levels.length} levels, and the orders get bigger as you go.`;
 $('#soon').textContent = `Coming soon: ${COMING_SOON.join(' · ')}`;
 const standalone = window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches;
 if (!standalone && /iPhone|iPad|iPod/.test(navigator.userAgent)) $('#a2hs').hidden = false;
@@ -903,4 +986,4 @@ if ('serviceWorker' in navigator && location.protocol === 'https:') {
 }
 
 // Handy for testing from the console.
-window.__topshelf = { tick: update, STAGES, G, T, V: () => V, DRINKS, sprites, save, launchAt(x) { G.aimX = x; launch(); }, startStage, sound };
+window.__topshelf = { tick: update, STAGES, G, T, V: () => V, DRINKS, sprites, save, launchAt(x) { G.aimX = x; launch(); }, startLevel, shake, sound };

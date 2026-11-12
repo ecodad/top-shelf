@@ -21,9 +21,18 @@ directly from disk will not load the scripts.
 
 - Drag left and right to aim, let go to slide the drink at a fixed speed.
 - Two matching drinks merge into the next drink on the ladder (shown along the top).
-- Making the drink on the current order ticket serves it: it leaves the bar and pays out.
-- A stage is five orders, each for a bigger drink.
-- If drinks sit past the dashed line for three seconds, the round ends. Coins are kept.
+- Whenever the drink on the current order ticket is standing on the bar, it is served:
+  it leaves the bar and pays out. It does not matter whether you just made it or made
+  it earlier, so it pays to build the "On deck" drink ahead of time.
+- A stage has five levels. Each level is a list of orders. Early levels ask for small
+  drinks; later levels and stages add the bigger ones and leave less room on the bar.
+- Regular deals are always smaller than the smallest drink on the level's order list.
+  About one slide in twenty-two is a bigger drink instead.
+- A freshly slid drink hits like a heavy puck, so an off-centre hit knocks others aside.
+- Shake (three per level) jolts every drink toward you and sideways. They settle in a
+  new arrangement, which is the way to free a glass stuck between two others.
+- If a drink comes to rest past the dashed line and stays there for three seconds, the
+  level ends. Coins are kept, and you retry the same level.
 
 ## Layout
 
@@ -43,8 +52,9 @@ directly from disk will not load the scripts.
 ## Tuning
 
 - Drink sizes: `DRINKS` in `js/drinks.js`.
-- Table length, the "full" line and launch speed: the constants at the top of `js/main.js`.
-- Orders and payouts per stage: `STAGES` in `js/stages.js`.
+- Table length and launch speed: the constants at the top of `js/main.js`.
+- Levels per stage (order lists, where the "full" line sits, shakes): `STAGES` in `js/stages.js`.
+- Coins paid per drink: `COIN` in `js/stages.js`.
 - What gets dealt: `deal()` in `js/main.js`.
 
 ## Regenerating the icons
@@ -59,5 +69,8 @@ Repeat with 192 and 180 (`apple-touch-icon.png`).
 
 ## Status
 
-Stage 1 (New York Nights) is playable. Four more stages, and something to spend coins
-on, are planned.
+Stage 1 (New York Nights) is playable with five levels. Four more stages, and something
+to spend coins on, are planned.
+
+For testing, the page exposes `window.__topshelf`. `startLevel(n)`, `launchAt(x)`,
+`shake()` and `tick(1/60)` let a script play whole levels instantly.

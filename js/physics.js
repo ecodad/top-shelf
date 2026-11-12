@@ -9,7 +9,7 @@ export class World {
     this.bodies = [];
     this.gravity = opt.gravity ?? 160;
     this.damp = opt.damp ?? 1.4;
-    this.rest = opt.rest ?? 0.22;
+    this.rest = opt.rest ?? 0.3;
     this.maxSpeed = 250;
     this.onMerge = null;   // (a, b) => new body spec or null
     this.onImpact = null;  // (speed, a, b|null)
@@ -34,6 +34,7 @@ export class World {
     for (const b of this.bodies) {
       b.age += dt;
       if (b.r < b.rT) b.r = Math.min(b.rT, b.r + b.grow * dt);
+      if (b.heavy > 0 && !b.sliding) b.heavy -= dt;
     }
     const SUB = 4;
     for (let s = 0; s < SUB; s++) this._sub(dt / SUB);
@@ -75,7 +76,8 @@ export class World {
           }
           const d = Math.sqrt(d2) || 0.001;
           const nx = dx / d, ny = dy / d, pen = rr - d;
-          const ma = a.r * a.r, mb = b.r * b.r;
+          // A freshly slid drink hits like a heavier puck, so it can knock others aside.
+          const ma = a.r * a.r * (a.heavy > 0 ? 2.5 : 1), mb = b.r * b.r * (b.heavy > 0 ? 2.5 : 1);
           const wa = mb / (ma + mb), wb = ma / (ma + mb);
           a.x -= nx * pen * wa; a.y -= ny * pen * wa;
           b.x += nx * pen * wb; b.y += ny * pen * wb;

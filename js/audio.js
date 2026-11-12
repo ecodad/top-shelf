@@ -154,6 +154,13 @@ export class Sound {
     this._noise(this.sfxBus, t + 0.75, 0.5, 0.12, 'lowpass', 500);
   }
 
+  rattle() {
+    if (!this.ready || !this.sfx) return;
+    const t = this.now;
+    for (let i = 0; i < 7; i++) this._clinkAt(t + Math.random() * 0.4, 0.5 + Math.random() * 0.4, (Math.random() * 8) | 0);
+    this._noise(this.sfxBus, t, 0.35, 0.1, 'bandpass', 420, 0.8);
+  }
+
   warn() {
     if (!this.ready || !this.sfx) return;
     this._tone(this.sfxBus, 'square', 660, this.now, 0.09, 0.06);

@@ -80,12 +80,17 @@ export const STAGES = [
     id: 'nyc',
     name: 'New York Nights',
     blurb: 'A rooftop bar over Manhattan',
-    orders: [
-      { tier: 3, coins: 200 },
-      { tier: 4, coins: 300 },
-      { tier: 5, coins: 400 },
-      { tier: 6, coins: 500 },
-      { tier: 7, coins: 600 },
+    // Each level is a list of orders by drink number (0 = Tequila Shot ... 9 = Scorpion Bowl).
+    // Stage 1 stays on the low end of the menu; later stages add the bigger drinks.
+    // "fail" is where the "bar is full" line sits (0 = far end, 132 = player's end):
+    // a smaller number means less room, which is the main difficulty dial besides
+    // bigger drinks. Optional per level: shakes (default 3).
+    levels: [
+      { orders: [2, 2, 3, 2, 3], fail: 92 },
+      { orders: [3, 2, 3, 4, 3, 4], fail: 88 },
+      { orders: [3, 4, 3, 5, 4, 3], fail: 82 },
+      { orders: [4, 3, 5, 4, 5, 3, 5], fail: 72 },
+      { orders: [4, 5, 4, 6, 5, 4, 6], fail: 62 },
     ],
     song: JAZZ,
     accent: '#ff4fa3',
@@ -142,5 +147,8 @@ export const STAGES = [
   },
 ];
 
-export const COMING_SOON = ['Las Vegas Casino', 'California Beach Bar', 'Hawaiian Tiki Bar', 'New Orleans Jazz Club'];
+// Coins paid for serving each drink, by drink number.
+export const COIN = [10, 25, 50, 100, 200, 300, 500, 750, 1000, 1500];
+
+export const COMING_SOON =['Las Vegas Casino', 'California Beach Bar', 'Hawaiian Tiki Bar', 'New Orleans Jazz Club'];
 export { rng };
