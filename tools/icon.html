@@ -1,0 +1,29 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Top Shelf icon</title>
+<style>html, body { margin: 0; background: #000; overflow: hidden; } canvas { display: block; }</style>
+<canvas id="c"></canvas>
+<script type="module">
+  // Renders the app icon from the game's own Cosmopolitan drawing.
+  // Open with ?s=512 (or 192, 180) and screenshot at that window size.
+  import { buildSprites } from '../js/drinks.js';
+  const s = +(new URLSearchParams(location.search).get('s') || 512);
+  const c = document.getElementById('c');
+  c.width = c.height = s;
+  c.style.width = c.style.height = s + 'px';
+  const x = c.getContext('2d');
+  const g = x.createLinearGradient(0, 0, 0, s);
+  g.addColorStop(0, '#140c44');
+  g.addColorStop(0.6, '#6a1f6e');
+  g.addColorStop(1, '#ff4fa3');
+  x.fillStyle = g;
+  x.fillRect(0, 0, s, s);
+  const rg = x.createRadialGradient(s / 2, s * 0.5, 0, s / 2, s * 0.5, s * 0.6);
+  rg.addColorStop(0, 'rgba(255,255,255,0.38)');
+  rg.addColorStop(1, 'rgba(255,255,255,0)');
+  x.fillStyle = rg;
+  x.fillRect(0, 0, s, s);
+  const sp = buildSprites(4)[4], bb = sp.bb, ss = sp.ss;
+  const k = Math.min((s * 0.74) / bb.w, (s * 0.74) / bb.h);
+  x.drawImage(sp, bb.x * ss, bb.y * ss, bb.w * ss, bb.h * ss, s / 2 - (bb.w * k) / 2, s / 2 - (bb.h * k) / 2, bb.w * k, bb.h * k);
+</script>

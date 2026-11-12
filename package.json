@@ -1,0 +1,10 @@
+{
+  "name": "top-shelf",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Top Shelf: slide drinks down the bar and merge them into bigger ones. A static web app, no build step.",
+  "scripts": {
+    "start": "python -m http.server 8765"
+  }
+}
