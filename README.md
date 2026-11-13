@@ -52,9 +52,10 @@ directly from disk will not load the scripts.
 | `js/drinks.js` | The drink ladder and the vector art for each drink |
 | `js/stages.js` | Stage themes: orders, backdrop, table colours, song |
 | `js/audio.js` | Synthesised sound effects and music |
+| `js/build.js` | Build date and time shown on the launch screen; written by `tools/stamp.py` |
 | `sw.js`, `manifest.webmanifest`, `icons/` | Home-screen install and offline support |
 | `assets/art.json` | Lists the images in use: drinks, obstacles, stage backdrop |
-| `assets/drinks/`, `assets/stages/` | Generated drink art (512 px) and the stage backdrop |
+| `assets/drinks/`, `assets/props/`, `assets/stages/` | Generated drink and obstacle art (512 px) and the stage backdrop |
 | `docs/IMAGE_PROMPTS.md` | Prompts for generating swap-in art |
 | `tools/icon.html` | Renders the app icon from the game's own art |
 
@@ -68,6 +69,16 @@ directly from disk will not load the scripts.
   wide enough for the level's biggest drink or closed; a narrow gap traps drinks.
 - Coins paid per drink: `COIN` in `js/stages.js`.
 - What gets dealt: `deal()` in `js/main.js`.
+
+## Build stamp
+
+The launch screen shows the date and time of the build. `tools/hooks/pre-commit` runs
+`tools/stamp.py` on every commit, so the stamp is the commit time. On a fresh clone,
+turn the hook on once:
+
+```bash
+git config core.hooksPath tools/hooks
+```
 
 ## Regenerating the icons
 

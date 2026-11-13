@@ -12,7 +12,11 @@
     "mai_tai": "drinks/mai_tai.png",
     "scorpion_bowl": "drinks/scorpion_bowl.png"
   },
-  "props": {},
+  "props": {
+    "shaker": "props/shaker.png",
+    "lantern": "props/lantern.png",
+    "bucket": "props/bucket.png"
+  },
   "stages": {
     "nyc": {
       "backdrop": "stages/nyc/backdrop.jpg"

@@ -1,11 +1,12 @@
 // Offline support. Network first, so a phone that is online always gets the latest
 // version; the cached copy is only used when there is no connection.
-const CACHE = 'topshelf-v2';
+const CACHE = 'topshelf-v3';
 const CORE = [
   './',
   'index.html',
   'manifest.webmanifest',
   'js/main.js',
+  'js/build.js',
   'js/physics.js',
   'js/drinks.js',
   'js/stages.js',

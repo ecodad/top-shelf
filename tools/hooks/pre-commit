@@ -1,0 +1,4 @@
+#!/bin/sh
+# Stamp the build time into js/build.js so the launch screen shows when this
+# version was made. Enabled with:  git config core.hooksPath tools/hooks
+python tools/stamp.py && git add js/build.js

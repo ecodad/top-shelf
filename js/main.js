@@ -2,6 +2,7 @@ import { World } from './physics.js';
 import { DRINKS, PROPS, BOX, buildSprites, buildPropSprites, loadArtOverrides } from './drinks.js';
 import { STAGES, COMING_SOON, COIN, rng } from './stages.js';
 import { Sound } from './audio.js';
+import { BUILD } from './build.js';
 
 // Table space: 100 wide, 132 long. y = 0 is the far end; FAIL is the "bar is full" line.
 const T = { W: 100, L: 132, FAIL: 92, LAUNCH: 115 };
@@ -1003,6 +1004,7 @@ window.addEventListener('orientationchange', () => setTimeout(layout, 200));
 $('#stageName').textContent = stage().name;
 $('#stageBlurb').textContent = `${stage().blurb}. ${stage().levels.length} levels, and the orders get bigger as you go.`;
 $('#soon').textContent = `Coming soon: ${COMING_SOON.join(' · ')}`;
+$('#build').textContent = `Build: ${BUILD}`;
 const standalone = window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches;
 if (!standalone && /iPhone|iPad|iPod/.test(navigator.userAgent)) $('#a2hs').hidden = false;
 
