@@ -1,0 +1,3 @@
+# full-size generated art waiting to be resized into assets/
+art-inbox/*
+!art-inbox/README.md

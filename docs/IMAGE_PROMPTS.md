@@ -169,7 +169,7 @@ backdrop in `assets/stages/vegas/`, both listed in `assets/art.json`.
 - **Style reference:** attach `C:\sandbox\top-shelf\assets\drinks\tequila_shot.png` to the first obstacle request and say "match this art style exactly; it is a style reference only, not the subject." That is what kept the New York set consistent.
 - **Obstacles:** square 1024 x 1024 PNG with a **transparent background**.
 - **Backdrop:** portrait 1024 x 1536.
-- Save them anywhere and give me the folder path, as before. File names: `chips.png`, `dice.png`, `roulette.png`, `backdrop.png`.
+- **Drop folder:** save all four into `art-inbox/vegas/` in this repo (`C:\sandbox\top-shelf\art-inbox\vegas\`) with exactly these file names: `chips.png`, `dice.png`, `roulette.png`, `backdrop.png`. The folder is kept out of the published game, so full-size originals are fine there.
 
 ### Style block (paste at the start of the chips and dice prompts)
 
