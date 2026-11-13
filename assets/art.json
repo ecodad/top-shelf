@@ -15,11 +15,17 @@
   "props": {
     "shaker": "props/shaker.png",
     "lantern": "props/lantern.png",
-    "bucket": "props/bucket.png"
+    "bucket": "props/bucket.png",
+    "chips": "props/chips.png",
+    "dice": "props/dice.png",
+    "roulette": "props/roulette.png"
   },
   "stages": {
     "nyc": {
       "backdrop": "stages/nyc/backdrop.jpg"
+    },
+    "vegas": {
+      "backdrop": "stages/vegas/backdrop.jpg"
     }
   }
 }
