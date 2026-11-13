@@ -69,7 +69,7 @@
   .overlay p[hidden] { display: none; }
 
   .card {
-    width: min(78vw, 300px); padding: 14px 18px; border-radius: 18px;
+    width: min(66vw, 280px); padding: 14px 14px; border-radius: 18px;
     background: linear-gradient(160deg, rgba(255, 79, 163, 0.22), rgba(90, 200, 255, 0.14));
     border: 1.5px solid rgba(255, 255, 255, 0.28);
   }
@@ -87,6 +87,13 @@
   }
   .btn.ghost { border-color: transparent; background: none; color: rgba(255, 255, 255, 0.7); font-size: 15px; padding: 8px 26px; }
   .btn:active { transform: translateY(2px); }
+  .btn:disabled { opacity: 0.45; }
+  .stage-row { display: flex; align-items: center; gap: 7px; }
+  .nav {
+    width: 36px; height: 52px; border-radius: 12px; border: 1.5px solid rgba(255, 255, 255, 0.45); padding: 0;
+    background: rgba(255, 255, 255, 0.12); color: #fff; font: inherit; font-size: 28px; font-weight: 900; line-height: 1;
+  }
+  .nav:disabled { opacity: 0.22; }
 
   .wallet { display: flex; align-items: center; gap: 8px; font-size: 20px; font-weight: 900; }
   .wallet.big { font-size: 34px; color: #ffd43b; }
@@ -101,11 +108,15 @@
 <section id="title" class="overlay show">
   <h1 class="neon">Top Shelf</h1>
   <p class="tag">Slide · Clink · Merge</p>
-  <div class="card">
-    <div class="k">STAGE 1</div>
-    <div class="n" id="stageName"></div>
-    <div class="d" id="stageBlurb"></div>
-    <div class="levels" id="levels"></div>
+  <div class="stage-row">
+    <button id="btnPrevStage" class="nav" aria-label="Previous stage">&lsaquo;</button>
+    <div class="card">
+      <div class="k" id="stageK">STAGE 1</div>
+      <div class="n" id="stageName"></div>
+      <div class="d" id="stageBlurb"></div>
+      <div class="levels" id="levels"></div>
+    </div>
+    <button id="btnNextStage" class="nav" aria-label="Next stage">&rsaquo;</button>
   </div>
   <button id="btnPlay" class="btn primary">Play</button>
   <div class="wallet"><i class="coin"></i><span id="titleCoins">0</span></div>

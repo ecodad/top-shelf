@@ -102,6 +102,18 @@ export class World {
           a.x -= nx * pen * wa; a.y -= ny * pen * wa;
           b.x += nx * pen * wb; b.y += ny * pen * wb;
           a.sliding = b.sliding = false;
+          // A spinning obstacle (the roulette wheel) flings whatever touches it sideways,
+          // in the direction its rim is moving, and never lets a drink cling to it.
+          const sp = a.fixed ? a : b.fixed ? b : null;
+          if (sp && sp.fling) {
+            const m = sp === a ? b : a, s = sp === a ? 1 : -1;
+            const ox = nx * s, oy = ny * s;                       // from the wheel out to the drink
+            const tx = -oy * sp.spinDir, ty = ox * sp.spinDir;    // the way the rim is moving there
+            const vt = m.vx * tx + m.vy * ty;
+            if (vt < sp.fling) { m.vx += tx * (sp.fling - vt); m.vy += ty * (sp.fling - vt); }
+            const vo = m.vx * ox + m.vy * oy;
+            if (vo < 45) { m.vx += ox * (45 - vo); m.vy += oy * (45 - vo); }
+          }
         }
       }
       const e = this.restWall;

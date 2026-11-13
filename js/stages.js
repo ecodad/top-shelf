@@ -75,6 +75,35 @@ const JAZZ = {
   ],
 };
 
+// Fast big-band swing with brass stabs, and a casino floor murmuring underneath.
+const VEGAS = {
+  bpm: 164,
+  swing: 0.66,
+  lead: 'brass',
+  comp: 'brass',
+  ambience: 'casino',
+  bars: [
+    { bass: [53, 57, 60, 62], chord: [57, 60, 62, 65] },   // F6
+    { bass: [50, 53, 57, 60], chord: [53, 57, 60, 64] },   // Dm9
+    { bass: [55, 58, 62, 65], chord: [58, 62, 65, 69] },   // Gm9
+    { bass: [48, 52, 55, 58], chord: [52, 58, 62, 69] },   // C13
+    { bass: [53, 57, 60, 62], chord: [57, 60, 62, 65] },
+    { bass: [50, 53, 57, 60], chord: [53, 57, 60, 64] },
+    { bass: [55, 58, 62, 65], chord: [58, 62, 65, 69] },
+    { bass: [48, 52, 55, 52], chord: [52, 58, 62, 69] },
+  ],
+  melody: [
+    [0, 0, 72, 0.5], [0, 0.5, 77, 0.5], [0, 1, 81, 1], [0, 2.5, 84, 0.5], [0, 3, 81, 1],
+    [1, 0, 77, 1.5], [1, 1.5, 74, 0.5], [1, 2, 77, 2],
+    [2, 0, 70, 0.5], [2, 0.5, 74, 0.5], [2, 1, 79, 1], [2, 2.5, 82, 0.5], [2, 3, 79, 1],
+    [3, 0, 76, 1.5], [3, 1.5, 72, 0.5], [3, 2, 76, 1], [3, 3, 79, 1],
+    [4, 0, 81, 0.5], [4, 0.5, 84, 0.5], [4, 1, 86, 1], [4, 2, 84, 1], [4, 3, 81, 1],
+    [5, 0, 77, 1], [5, 1, 74, 1], [5, 2, 69, 2],
+    [6, 0, 74, 0.5], [6, 0.5, 77, 0.5], [6, 1, 79, 0.5], [6, 1.5, 82, 0.5], [6, 2, 81, 1], [6, 3, 79, 1],
+    [7, 0, 76, 1], [7, 1, 72, 1], [7, 2, 77, 2],
+  ],
+};
+
 export const STAGES = [
   {
     id: 'nyc',
@@ -151,10 +180,90 @@ export const STAGES = [
       }
     },
   },
+  {
+    id: 'vegas',
+    name: 'Las Vegas Strip',
+    blurb: 'A high-roller table on the Strip',
+    // Vegas twists: a roulette wheel that spins and flings drinks (spin: 1 clockwise,
+    // -1 the other way), and one gold High Roller ticket per level.
+    //   high: [which order (0 = first), slides allowed]  pays triple if served in time
+    //   deal: [smallest, biggest] drink number dealt (default 0 up to one below the
+    //         smallest order, at most 3)
+    levels: [
+      { orders: [4, 5, 4, 6, 5], fail: 90, note: 'Gold ticket pays triple',
+        high: [3, 14], props: [{ kind: 'chips', x: 50, y: 44 }] },
+      { orders: [5, 4, 6, 5, 6, 4], fail: 88, note: 'Chips and dice on the felt',
+        high: [2, 13], props: [{ kind: 'dice', x: 30, y: 42 }, { kind: 'chips', x: 72, y: 28 }] },
+      { orders: [5, 6, 5, 7, 6], fail: 92, deal: [1, 4], note: 'The wheel flings drinks left',
+        high: [3, 12], props: [{ kind: 'roulette', x: 50, y: 40, spin: 1 }] },
+      { orders: [6, 7, 6, 7, 6, 7], fail: 92, deal: [2, 5], note: 'This wheel spins the other way',
+        high: [1, 10], props: [{ kind: 'roulette', x: 36, y: 42, spin: -1 }, { kind: 'chips', x: 80, y: 26 }] },
+      { orders: [6, 7, 6, 8, 7, 6], fail: 94, deal: [2, 5], note: 'High stakes: the Mai Tai',
+        high: [3, 12], props: [{ kind: 'roulette', x: 50, y: 38, spin: 1 }, { kind: 'dice', x: 15, y: 15 }, { kind: 'chips', x: 86, y: 14 }] },
+    ],
+    song: VEGAS,
+    accent: '#ffd43b',
+    table: {
+      rim: ['#8a5a12', '#ffe08a', '#a8741a'],
+      top: ['#0a4a30', '#0e6943', '#12824f'],
+      apron: ['#6b3a12', '#2e1705'],
+      line: '#ffd43b',
+      glowFar: 'rgba(255,212,59,0.14)',
+      glowNear: 'rgba(255,79,163,0.10)',
+      felt: true,
+      marquee: true,
+    },
+    paintBackdrop(c, V) {
+      const { w, h, u } = V;
+      const base = V.farY + 24 * u;
+      let g = c.createLinearGradient(0, 0, 0, base);
+      g.addColorStop(0, '#0b0630');
+      g.addColorStop(0.5, '#3a0f5c');
+      g.addColorStop(0.82, '#b0306e');
+      g.addColorStop(1, '#ff8a3d');
+      c.fillStyle = g;
+      c.fillRect(0, 0, w, base);
+      const R = rng(7777);
+      c.fillStyle = '#ffffff';
+      for (let i = 0; i < 60; i++) {
+        c.globalAlpha = 0.25 + R() * 0.5;
+        c.beginPath();
+        c.arc(R() * w, R() * base * 0.5, (0.4 + R() * 0.8) * u, 0, 7);
+        c.fill();
+      }
+      c.globalAlpha = 1;
+      skylineLayer(c, R, V, base, '#3b1a6b', 110, 250, 0.4);
+      skylineLayer(c, R, V, base, '#1a0c3a', 40, 150, 0.5);
+      // neon strips up the towers
+      const neon = ['#ff4fa3', '#66d9e8', '#ffd43b', '#b197fc'];
+      for (let i = 0; i < 14; i++) {
+        const x = R() * w, hgt = (40 + R() * 120) * u;
+        c.fillStyle = neon[Math.floor(R() * neon.length)];
+        c.globalAlpha = 0.85;
+        c.fillRect(x, base - hgt, 1.6 * u, hgt * (0.5 + R() * 0.5));
+      }
+      c.globalAlpha = 1;
+      g = c.createLinearGradient(0, base, 0, h);
+      g.addColorStop(0, '#2a0f3a');
+      g.addColorStop(1, '#0a0514');
+      c.fillStyle = g;
+      c.fillRect(0, base, w, h - base);
+      const cols = ['255,212,59', '255,79,163', '90,200,255'];
+      for (let i = 0; i < 16; i++) {
+        const x = R() * w, y = base + R() * (h - base) * 0.5, r = (16 + R() * 40) * u;
+        const col = cols[Math.floor(R() * cols.length)];
+        const bg = c.createRadialGradient(x, y, 0, x, y, r);
+        bg.addColorStop(0, `rgba(${col},${0.1 + R() * 0.12})`);
+        bg.addColorStop(1, `rgba(${col},0)`);
+        c.fillStyle = bg;
+        c.fillRect(x - r, y - r, r * 2, r * 2);
+      }
+    },
+  },
 ];
 
 // Coins paid for serving each drink, by drink number.
 export const COIN = [10, 25, 50, 100, 200, 300, 500, 750, 1000, 1500];
 
-export const COMING_SOON =['Las Vegas Casino', 'California Beach Bar', 'Hawaiian Tiki Bar', 'New Orleans Jazz Club'];
+export const COMING_SOON = ['California Beach Bar', 'Hawaiian Tiki Bar', 'New Orleans Jazz Club'];
 export { rng };

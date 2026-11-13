@@ -133,6 +133,20 @@ export class Sound {
     this._clinkAt(t + 0.36, 1, 2);
   }
 
+  // A High Roller ticket served in time: bell, fanfare and a cascade of coins.
+  jackpot() {
+    if (!this.ready || !this.sfx) return;
+    const t = this.now;
+    for (let k = 0; k < 14; k++) this._tone(this.sfxBus, 'sine', 1976, t + k * 0.05, 0.07, 0.09);
+    [72, 76, 79, 84, 88].forEach((m, i) => {
+      this._tone(this.sfxBus, 'sawtooth', hz(m), t + 0.1 + i * 0.09, 0.3, 0.07, { attack: 0.01, lp: 2600 });
+      this._tone(this.sfxBus, 'triangle', hz(m + 12), t + 0.1 + i * 0.09, 0.3, 0.08);
+    });
+    for (let k = 0; k < 16; k++) {
+      this._tone(this.sfxBus, 'triangle', 2200 + Math.random() * 2200, t + 0.5 + k * 0.05, 0.06, 0.06);
+    }
+  }
+
   stageClear() {
     if (!this.ready || !this.sfx) return;
     const t = this.now;
@@ -235,7 +249,16 @@ export class Sound {
     if (e === 0) this._tone(bus, 'sine', 95, t, 0.14, 0.2, { to: 48 });
 
     // comping: long chord on one, short stab on the "and" of two
-    if (e === 0 || e === 3) {
+    if (song.comp === 'brass') {
+      // big-band section hits: short and punchy
+      if (e === 0 || e === 3 || e === 6) {
+        const dur = e === 0 ? beat * 0.7 : beat * 0.4;
+        for (const m of bar.chord) {
+          this._tone(bus, 'sawtooth', hz(m), t, dur, 0.03, { attack: 0.012, lp: 1700 });
+          this._tone(bus, 'triangle', hz(m), t, dur, 0.02, { attack: 0.012 });
+        }
+      }
+    } else if (e === 0 || e === 3) {
       const dur = e === 0 ? beat * 1.5 : beat * 0.55;
       for (const m of bar.chord) {
         this._tone(bus, 'sine', hz(m), t, dur, 0.055, { attack: 0.006 });
@@ -246,9 +269,31 @@ export class Sound {
     const mel = this._mel.get(i);
     if (mel) {
       const [m, len] = mel, f = hz(m), dur = Math.max(0.22, len * beat * 1.1);
-      this._tone(bus, 'sine', f, t, dur, 0.13, { attack: 0.005 });
-      this._tone(bus, 'sine', f * 4, t, Math.min(dur, 0.18), 0.03, { attack: 0.003 });
-      this._tone(bus, 'triangle', f, t, dur * 0.5, 0.035, { attack: 0.005 });
+      if (song.lead === 'brass') {
+        this._tone(bus, 'sawtooth', f, t, dur * 0.85, 0.085, { attack: 0.02, hold: dur * 0.4, lp: 2300 });
+        this._tone(bus, 'triangle', f, t, dur * 0.85, 0.05, { attack: 0.02 });
+        this._tone(bus, 'sawtooth', f * 1.004, t, dur * 0.85, 0.03, { attack: 0.03, lp: 1800 });
+      } else {
+        this._tone(bus, 'sine', f, t, dur, 0.13, { attack: 0.005 });
+        this._tone(bus, 'sine', f * 4, t, Math.min(dur, 0.18), 0.03, { attack: 0.003 });
+        this._tone(bus, 'triangle', f, t, dur * 0.5, 0.035, { attack: 0.005 });
+      }
+    }
+    if (song.ambience === 'casino') this._casino(t);
+  }
+
+  // Casino floor in the background: slot chimes, coins in a tray, a far-off jackpot bell.
+  _casino(t) {
+    const bus = this.musBus, r = Math.random();
+    if (r < 0.035) {
+      const base = 84 + ((Math.random() * 5) | 0);
+      [0, 4, 7, 12, 7, 12].forEach((d, k) => this._tone(bus, 'square', hz(base + d), t + k * 0.07, 0.09, 0.012));
+    } else if (r < 0.06) {
+      for (let k = 0; k < 9; k++) {
+        this._tone(bus, 'triangle', 2400 + Math.random() * 1800, t + k * 0.055 + Math.random() * 0.02, 0.05, 0.02);
+      }
+    } else if (r < 0.068) {
+      for (let k = 0; k < 10; k++) this._tone(bus, 'sine', 1760, t + k * 0.06, 0.07, 0.016);
     }
   }
 }

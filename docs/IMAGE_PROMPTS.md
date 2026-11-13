@@ -158,6 +158,84 @@ the top to hot pink at the bottom with a soft white glow behind the glass. Simpl
 bold, readable at small size. No text.
 ```
 
+## Las Vegas stage
+
+Four images, written for ChatGPT image generation. The gold High Roller ticket, the felt
+table and the marquee lights are drawn in code. Obstacles go in `assets/props/` and the
+backdrop in `assets/stages/vegas/`, both listed in `assets/art.json`.
+
+### Before you start
+
+- **Style reference:** attach `C:\sandbox\top-shelf\assets\drinks\tequila_shot.png` to the first obstacle request and say "match this art style exactly; it is a style reference only, not the subject." That is what kept the New York set consistent.
+- **Obstacles:** square 1024 x 1024 PNG with a **transparent background**.
+- **Backdrop:** portrait 1024 x 1536.
+- Save them anywhere and give me the folder path, as before. File names: `chips.png`, `dice.png`, `roulette.png`, `backdrop.png`.
+
+### Style block (paste at the start of the chips and dice prompts)
+
+```
+Glossy cartoon game icon, vector-illustration look with clean shapes, a bold dark navy
+outline of even thickness, bright saturated colours, soft cel shading with one crisp
+white highlight streak down the left side of the object, and a thin white sticker
+border around the whole silhouette. Straight-on view tilted slightly from above so the
+top surfaces are just visible. The object is centred, fills most of the frame and is
+fully in view. Transparent background. No table, no ground shadow, no text, no logos,
+no hands, no other objects, no glow or haze outside the sticker border.
+```
+
+### 1. Poker chip stack: `chips.png`
+
+```
+[style block] The object: a neat stack of six casino poker chips standing upright as a
+short cylinder. The chips alternate red, blue and green, each with white stripe
+inserts around its edge. The top chip's face is visible: red with a white ring and
+white edge inserts. No numbers, no letters, no logos.
+```
+
+### 2. Pair of dice: `dice.png`
+
+```
+[style block] The object: two casino dice sitting together and touching, one slightly
+in front of the other. Translucent ruby-red dice with rounded corners and white pips.
+Any faces may show, but no numbers or letters. The two dice together fill most of the
+frame.
+```
+
+### 3. Roulette wheel: `roulette.png`
+
+This one is different. The game spins it, so it must be drawn **from directly above** as a perfect circle. Do not use the style block's "tilted from above" view.
+
+```
+A roulette wheel seen from directly above, a perfectly circular top-down view with no
+perspective and no tilt, filling the frame edge to edge and centred. Glossy cartoon
+vector-illustration look with clean shapes, a bold dark navy outline, bright saturated
+colours and soft cel shading. A polished dark wood outer rim, a thin gold ring inside
+it, then a ring of alternating red and black pockets with one single green pocket,
+then a sloped dark wood inner cone, and a gold four-armed spindle at the exact centre.
+One small white ball resting in a pocket. No numbers, no letters, no text, no logos.
+Transparent background outside the circle. No table, no shadow, no hands, no glow.
+```
+
+If it comes back tilted or oval, tell it: "Redraw it as a flat, perfectly circular top-down view, like a clock face seen head-on."
+
+### 4. Las Vegas backdrop: `backdrop.png`
+
+Portrait, 1024 x 1536. The game draws the card table, the order tickets and the controls over this, so the middle and lower two thirds must stay dark and calm.
+
+```
+Stylised cartoon night-time view of a glittering casino boulevard, portrait
+orientation. Deep indigo sky fading to magenta and warm orange at the horizon. In the
+upper third only: a layered skyline of generic resort towers outlined in neon pink,
+cyan, gold and violet, with rows of small lit windows, marquee light bulbs, and a few
+tall palm tree silhouettes in front. The lower two thirds are a dark, softly blurred
+casino terrace floor in deep purple and burgundy, with a few out-of-focus bokeh lights
+in gold, pink and cyan near the top of that area and nothing else. Flat vector look,
+rich colours. No people, no cars, no text, no signs with words, no logos, no real
+buildings or recognisable landmarks.
+```
+
+If it adds words or a famous sign, tell it: "Remove all lettering and any real landmark; keep only abstract neon shapes."
+
 ## Turning the images on
 
 Put the PNGs in `assets/drinks/` and list them in `assets/art.json`:

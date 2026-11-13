@@ -49,6 +49,7 @@ const G = {
   aimX: 50, aiming: false, pid: -1,
   danger: 0, lastWarn: 0, launches: 0, stageCoins: 0, coinsShown: save.coins,
   fx: [], banner: null, tAnim: null, clearAt: 0, fireAt: 0, time: 0,
+  dealLo: 0, dealHi: 1, highLeft: 0,
 };
 let V = null;
 let bg = null;
@@ -56,6 +57,10 @@ let bg = null;
 const stage = () => STAGES[G.stage];
 const targetTier = () => (G.orders[G.orderIdx] ? G.orders[G.orderIdx].tier : 99);
 const unlocked = () => Math.min(stage().levels.length - 1, save.progress[stage().id] || 0);
+// Adding ?unlock to the address opens every stage, for trying things out.
+const UNLOCK_ALL = new URLSearchParams(location.search).has('unlock');
+// A stage opens once the last level of the stage before it has been cleared.
+const stageOpen = (i) => i === 0 || UNLOCK_ALL || (save.cleared[STAGES[i - 1].id] || 0) > 0;
 
 // ---------- layout and projection ----------
 
@@ -180,7 +185,15 @@ function paintTable(c) {
   quad(c, [a, b, cc, d]);
   c.clip();
   const R = rng(99);
-  for (let i = 0; i < 26; i++) {
+  if (st.felt) {
+    // card-table markings instead of wood grain
+    c.lineWidth = 1.5 * u;
+    for (const [k, alpha] of [[0, 0.22], [9, 0.12]]) {
+      const p0 = proj(6 + k, 34 + k), pm = proj(50, -14 + k * 2.4), p1 = proj(94 - k, 34 + k);
+      c.strokeStyle = `rgba(255,236,170,${alpha})`;
+      c.beginPath(); c.moveTo(p0.x, p0.y); c.quadraticCurveTo(pm.x, pm.y, p1.x, p1.y); c.stroke();
+    }
+  } else for (let i = 0; i < 26; i++) {
     const x0 = R() * T.W, x1 = x0 + (R() - 0.5) * 5, xm = (x0 + x1) / 2 + (R() - 0.5) * 4;
     const p0 = proj(x0, 0), pm = proj(xm, T.L * 0.5), p1 = proj(x1, T.L);
     c.strokeStyle = R() < 0.5 ? `rgba(0,0,0,${0.06 + R() * 0.1})` : `rgba(255,190,130,${0.03 + R() * 0.05})`;
@@ -209,6 +222,33 @@ function paintTable(c) {
   c.lineWidth = 1.2 * u;
   quad(c, [a, b, cc, d]);
   c.stroke();
+
+  // where the marquee bulbs sit, all the way round the rail
+  V.bulbs = [];
+  if (st.marquee) {
+    const o = 2.1, y1 = T.L + 1.6;
+    const run = (x0, y0, x1, yEnd, n) => {
+      for (let i = 0; i < n; i++) V.bulbs.push(proj(lerp(x0, x1, i / n), lerp(y0, yEnd, i / n)));
+    };
+    run(-o, -o, T.W + o, -o, 12);
+    run(T.W + o, -o, T.W + o, y1, 17);
+    run(T.W + o, y1, -o, y1, 12);
+    run(-o, y1, -o, -o, 17);
+  }
+}
+
+function drawMarquee() {
+  if (!V.bulbs || !V.bulbs.length) return;
+  const u = V.u, phase = Math.floor(G.time * 5);
+  for (let i = 0; i < V.bulbs.length; i++) {
+    const p = V.bulbs[i], lit = (i + phase) % 3 === 0, r = 2.3 * u * p.s;
+    if (lit) {
+      ctx.fillStyle = 'rgba(255,236,150,0.35)';
+      ctx.beginPath(); ctx.arc(p.x, p.y, r * 2.4, 0, 7); ctx.fill();
+    }
+    ctx.fillStyle = lit ? '#fff7cf' : '#9a6a12';
+    ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, 7); ctx.fill();
+  }
 }
 
 // ---------- game flow ----------
@@ -220,25 +260,37 @@ function show(id) {
 }
 
 function deal() {
-  // Regular deals stay below the smallest drink on this level's order list,
-  // so everything on an order has to be made by merging.
-  const maxPool = Math.min(3, G.minOrder - 1);
+  // Regular deals stay below the smallest drink on this level's order list (unless the
+  // level sets its own range), so everything on an order has to be made by merging.
+  const lo = G.dealLo, hi = G.dealHi;
   // A rare bigger drink for variety. If it happens to match the order, lucky you.
-  if (Math.random() < 0.045) return Math.min(DRINKS.length - 2, maxPool + (Math.random() < 0.2 ? 2 : 1));
-  const weights = [34, 30, 22, 14].slice(0, maxPool + 1);
+  if (Math.random() < 0.045) return Math.min(DRINKS.length - 2, hi + (Math.random() < 0.2 ? 2 : 1));
+  const weights = [34, 30, 22, 14, 10].slice(0, hi - lo + 1);
   let roll = Math.random() * weights.reduce((s, v) => s + v, 0);
   for (let i = 0; i < weights.length; i++) {
     roll -= weights[i];
-    if (roll <= 0) return i;
+    if (roll <= 0) return lo + i;
   }
-  return 0;
+  return lo;
+}
+
+function setStage(i) {
+  G.stage = clamp(i, 0, STAGES.length - 1);
+  G.level = unlocked();
+  T.FAIL = stage().levels[G.level].fail ?? 92;
+  paintStatic();
+  refreshTitle();
 }
 
 function startLevel(n = G.level) {
   G.level = clamp(n, 0, stage().levels.length - 1);
   const lv = stage().levels[G.level];
-  G.orders = lv.orders.map((tier) => ({ tier, coins: COIN[tier] }));
+  // A High Roller order pays triple if it is served within its allowance of slides.
+  G.orders = lv.orders.map((tier, i) => ({ tier, coins: COIN[tier], high: lv.high && lv.high[0] === i ? lv.high[1] : 0 }));
   G.minOrder = Math.min(...lv.orders);
+  [G.dealLo, G.dealHi] = lv.deal || [0, Math.min(3, G.minOrder - 1)];
+  G.highLeft = G.orders[0].high;
+  save.stage = G.stage;
   G.shakes = lv.shakes ?? 3;
   const fail = lv.fail ?? 92;
   if (fail !== T.FAIL) { T.FAIL = fail; paintStatic(); }
@@ -254,6 +306,7 @@ function startLevel(n = G.level) {
   // Obstacles get unique negative drink numbers so they can never merge.
   (lv.props || []).forEach((p, i) => G.world.add({
     tier: -1 - i, kind: p.kind, x: p.x, y: p.y, r: PROPS[p.kind].r, fixed: true, born: -9,
+    flat: !!PROPS[p.kind].flat, fling: PROPS[p.kind].fling || 0, spinDir: p.spin || 1, angle: 0,
   }));
   G.orderIdx = 0; G.shownIdx = 0;
   G.danger = 0; G.launches = 0; G.stageCoins = 0;
@@ -305,6 +358,12 @@ function launch() {
   G.queued = false;
   G.cooldown = 0.42;
   G.launches++;
+  // count this slide against a High Roller ticket's allowance
+  const cur = G.orders[G.orderIdx];
+  if (cur && cur.high && !cur.missed) {
+    if (G.highLeft <= 0) cur.missed = true;
+    else G.highLeft--;
+  }
   sound.slide();
 }
 
@@ -336,7 +395,9 @@ function onMerge(a, b) {
 
 function deliver(tier, x, y) {
   const idx = G.orderIdx, order = G.orders[idx];
+  order.jackpot = !!order.high && !order.missed;
   G.orderIdx++;
+  G.highLeft = G.orders[G.orderIdx] ? G.orders[G.orderIdx].high : 0;
   G.serveGate = G.time + 0.6;
   if (G.orderIdx >= G.orders.length) { G.mode = 'clearing'; G.held = null; G.aiming = false; show(null); }
   const p = proj(x, y), rpx = DRINKS[tier].r * V.ppu * p.s, tk = V.cur;
@@ -349,21 +410,22 @@ function deliver(tier, x, y) {
 }
 
 function payout(order, idx) {
-  save.coins += order.coins;
-  G.stageCoins += order.coins;
+  const pay = order.jackpot ? order.coins * 3 : order.coins;
+  save.coins += pay;
+  G.stageCoins += pay;
   persist();
-  sound.orderUp();
+  if (order.jackpot) sound.jackpot(); else sound.orderUp();
   const tk = V.cur, x = tk.cx, y = tk.y + tk.h * 0.5, u = V.u;
-  confetti(x, y, 70);
+  confetti(x, y, order.jackpot ? 130 : 70);
   const px = V.pill.x + 17 * u, py = V.pill.y + V.pill.h / 2;
-  for (let i = 0; i < 10; i++) {
+  for (let i = 0; i < (order.jackpot ? 26 : 10); i++) {
     G.fx.push({
       kind: 'coin', t: -i * 0.06, dur: 0.6, x0: x + (Math.random() - 0.5) * 40 * u, y0: y + (Math.random() - 0.5) * 30 * u,
       x1: px, y1: py, bend: (Math.random() - 0.5) * 120 * u,
     });
     if (i % 3 === 0) sound.coin(0.45 + i * 0.06);
   }
-  G.banner = { text: 'ORDER UP!', sub: `${DRINKS[order.tier].name}  +${order.coins}`, t: 0, dur: 1.6 };
+  G.banner = { text: order.jackpot ? 'JACKPOT!' : 'ORDER UP!', sub: `${DRINKS[order.tier].name}  +${pay}`, t: 0, dur: order.jackpot ? 2.1 : 1.6 };
   G.tAnim = { t: 0, old: idx };
   G.shownIdx = idx + 1;
   if (idx + 1 >= G.orders.length) G.clearAt = G.time + 1.7;
@@ -382,8 +444,10 @@ function levelClear() {
     ? `${stage().name}: all ${n} levels served`
     : `${stage().name}: ${G.orders.length} orders served`;
   $('#clearCoins').textContent = `+${G.stageCoins.toLocaleString()}`;
-  $('#btnNext').hidden = last;
-  $('#clearSoon').textContent = last ? `Next stop: ${COMING_SOON[0]} (coming soon)` : '';
+  const nextStage = STAGES[G.stage + 1];
+  $('#btnNext').hidden = last && !nextStage;
+  $('#btnNext').textContent = last ? `On to ${nextStage ? nextStage.name : ''}` : 'Next level';
+  $('#clearSoon').textContent = !last ? '' : nextStage ? `${nextStage.name} is now open!` : `Next stop: ${COMING_SOON[0]} (coming soon)`;
   show('#clear');
 }
 
@@ -407,19 +471,28 @@ function toTitle() {
 }
 
 function refreshTitle() {
+  const st = stage(), open = stageOpen(G.stage), prev = STAGES[G.stage - 1];
   $('#titleCoins').textContent = save.coins.toLocaleString();
+  $('#stageK').textContent = `STAGE ${G.stage + 1} OF ${STAGES.length}`;
+  $('#stageName').textContent = st.name;
+  $('#stageBlurb').textContent = open
+    ? `${st.blurb}. ${st.levels.length} levels, and the orders get bigger as you go.`
+    : `Locked. Clear level ${prev.levels.length} of ${prev.name} to open it.`;
+  $('#btnPrevStage').disabled = G.stage === 0;
+  $('#btnNextStage').disabled = G.stage >= STAGES.length - 1;
   const box = $('#levels');
   box.innerHTML = '';
-  stage().levels.forEach((lv, i) => {
+  st.levels.forEach((lv, i) => {
     const b = document.createElement('button');
-    b.className = 'lv' + (i === G.level ? ' on' : '');
+    b.className = 'lv' + (open && i === G.level ? ' on' : '');
     b.textContent = String(i + 1);
-    b.disabled = i > unlocked();
+    b.disabled = !open || i > unlocked();
     b.setAttribute('aria-label', `Level ${i + 1}${b.disabled ? ' (locked)' : ''}`);
     b.addEventListener('click', () => { sound.unlock(); sound.tap(); G.level = i; refreshTitle(); });
     box.appendChild(b);
   });
-  $('#btnPlay').textContent = `Play level ${G.level + 1}`;
+  $('#btnPlay').disabled = !open;
+  $('#btnPlay').textContent = open ? `Play level ${G.level + 1}` : 'Locked';
 }
 
 function pause() {
@@ -645,8 +718,15 @@ function drawTicket(r, order, o) {
   ctx.rotate(o.rot || 0);
   ctx.globalAlpha = o.alpha ?? 1;
   ctx.shadowColor = 'rgba(0,0,0,0.45)'; ctx.shadowBlur = 9 * V.dpr; ctx.shadowOffsetY = 3 * V.dpr;
+  const gold = order.jackpot || (order.high > 0 && !order.missed);
   paperPath(r.w, r.h, u);
-  ctx.fillStyle = o.dim ? '#d6cdba' : '#fff8ea';
+  if (gold) {
+    const gg = ctx.createLinearGradient(0, 0, 0, r.h);
+    gg.addColorStop(0, o.dim ? '#e6cf7a' : '#fff3b0');
+    gg.addColorStop(0.55, o.dim ? '#d9b23a' : '#ffd43b');
+    gg.addColorStop(1, o.dim ? '#c08a16' : '#f59f00');
+    ctx.fillStyle = gg;
+  } else ctx.fillStyle = o.dim ? '#d6cdba' : '#fff8ea';
   ctx.fill();
   ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
 
@@ -654,7 +734,7 @@ function drawTicket(r, order, o) {
   ctx.fillStyle = '#e8c05a'; ctx.fill();
   ctx.lineWidth = 1.4 * u; ctx.strokeStyle = '#8a5f16'; ctx.stroke();
 
-  label(o.label, 0, 15 * q, 10 * q, '#c0392b', 0, 800);
+  label(gold ? 'HIGH ROLLER ×3' : o.label, 0, 15 * q, 10 * q, gold ? '#7a3f00' : '#c0392b', 0, 800);
   ctx.strokeStyle = 'rgba(60,40,20,0.35)';
   ctx.lineWidth = 1 * u;
   ctx.setLineDash([3 * u, 3 * u]);
@@ -663,9 +743,12 @@ function drawTicket(r, order, o) {
 
   const dh = r.h - 24 * q - 41 * q;
   drawFit(order.tier, 0, 27 * q + dh / 2, r.w - 26 * q, dh);
-  label(DRINKS[order.tier].name, 0, r.h - 31 * q, 10.5 * q, '#3b2a1a', 0, 700);
+  if (gold && o.current && !order.jackpot) {
+    const left = G.highLeft;
+    label(left > 0 ? `${left} slide${left === 1 ? '' : 's'} left` : 'Last chance!', 0, r.h - 31 * q, 11 * q, '#b02a00', 0, 800);
+  } else label(DRINKS[order.tier].name, 0, r.h - 31 * q, 10.5 * q, '#3b2a1a', 0, 700);
 
-  const txt = String(order.coins);
+  const txt = String(gold ? order.coins * 3 : order.coins);
   ctx.font = `800 ${15 * q}px ${FONT}`;
   const tw = ctx.measureText(txt).width, total = 16 * q + 4 * q + tw;
   drawCoin(-total / 2 + 8 * q, r.h - 15 * q, 8 * q);
@@ -701,13 +784,13 @@ function drawOrders() {
     if (orders[i + 1]) drawTicket(V.nxt, orders[i + 1], { label: 'ON DECK', dim: true, alpha: e, rot: sway(i + 1) });
     if (orders[i]) {
       const r = { cx: lerp(V.nxt.cx, V.cur.cx, e), y: V.railY, w: lerp(V.nxt.w, V.cur.w, e), h: lerp(V.nxt.h, V.cur.h, e) };
-      drawTicket(r, orders[i], { label: e > 0.5 ? `ORDER ${i + 1} OF ${n}` : 'ON DECK', dim: e < 0.5, rot: sway(i) });
+      drawTicket(r, orders[i], { label: e > 0.5 ? `ORDER ${i + 1} OF ${n}` : 'ON DECK', dim: e < 0.5, rot: sway(i), current: e > 0.5 });
     }
     const old = { cx: V.cur.cx - e * 20 * u, y: V.railY + e * e * 90 * u, w: V.cur.w, h: V.cur.h };
     drawTicket(old, orders[a.old], { label: `ORDER ${a.old + 1} OF ${n}`, alpha: 1 - e, rot: -e * 0.35, stamp: true });
   } else {
     if (orders[i + 1]) drawTicket(V.nxt, orders[i + 1], { label: 'ON DECK', dim: true, rot: sway(i + 1) });
-    if (orders[i]) drawTicket(V.cur, orders[i], { label: `ORDER ${i + 1} OF ${n}`, rot: sway(i) });
+    if (orders[i]) drawTicket(V.cur, orders[i], { label: `ORDER ${i + 1} OF ${n}`, rot: sway(i), current: true });
   }
 }
 
@@ -774,9 +857,27 @@ function drawProp(b) {
   ctx.drawImage(sp, p.x - BOX.ax * k, p.y - BOX.ay * k, BOX.w * k, BOX.h * k);
 }
 
+// A flat obstacle lies on the bar and turns (the roulette wheel).
+function drawFlatProp(b) {
+  const p = proj(b.x, b.y), sp = propSprites[b.kind];
+  const rx = b.r * V.ppu * p.s, ry = rx * 0.9, th = rx * 0.17;
+  ctx.fillStyle = 'rgba(0,0,0,0.4)';
+  ctx.beginPath(); ctx.ellipse(p.x, p.y + th * 1.7, rx * 1.05, ry * 1.05, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = '#3a1d0d';
+  ctx.beginPath(); ctx.ellipse(p.x, p.y + th, rx, ry, 0, 0, 7); ctx.fill();
+  ctx.lineWidth = 2 * V.u; ctx.strokeStyle = INK; ctx.stroke();
+  ctx.save();
+  ctx.translate(p.x, p.y);
+  ctx.scale(1, ry / rx);
+  ctx.rotate(b.angle || 0);
+  ctx.drawImage(sp, -rx, -rx, rx * 2, rx * 2);
+  ctx.restore();
+}
+
 function drawBodies() {
   const list = G.world.bodies.slice().sort((a, b) => a.y - b.y);
   for (const b of list) {
+    if (b.flat) { drawFlatProp(b); continue; }
     if (b.fixed) { drawProp(b); continue; }
     const tau = G.time - b.born;
     const pop = tau < 0.28 ? 1 + 0.2 * Math.sin((tau / 0.28) * Math.PI) : 1;
@@ -848,6 +949,7 @@ function update(dt) {
   if (G.mode === 'play' || G.mode === 'clearing') {
     acc += dt;
     while (acc >= 1 / 60) { G.world.step(1 / 60); acc -= 1 / 60; }
+    for (const b of G.world.bodies) if (b.fling) b.angle += b.spinDir * 2.6 * dt;
   }
 
   if (G.mode === 'play') {
@@ -909,6 +1011,7 @@ function render() {
   const sh = G.shakeFx > 0 ? G.shakeFx / 0.45 : 0;
   ctx.setTransform(V.dpr, 0, 0, V.dpr, Math.sin(G.time * 95) * 7 * V.u * sh * V.dpr, Math.cos(G.time * 71) * 5 * V.u * sh * V.dpr);
   ctx.drawImage(bg, 0, 0, V.w, V.h);
+  drawMarquee();
   drawHud();
   drawLadder();
   if (G.mode === 'title') return;
@@ -980,7 +1083,12 @@ function tapButton(sel, fn) {
 
 tapButton('#btnPlay', () => startLevel(G.level));
 tapButton('#btnShake', shake);
-tapButton('#btnNext', () => startLevel(G.level + 1));
+tapButton('#btnNext', () => {
+  if (G.level >= stage().levels.length - 1) { setStage(G.stage + 1); startLevel(0); }
+  else startLevel(G.level + 1);
+});
+tapButton('#btnPrevStage', () => setStage(G.stage - 1));
+tapButton('#btnNextStage', () => setStage(G.stage + 1));
 tapButton('#btnPause', pause);
 tapButton('#btnResume', resume);
 tapButton('#btnRestart', () => startLevel(G.level));
@@ -1001,8 +1109,7 @@ window.addEventListener('orientationchange', () => setTimeout(layout, 200));
 
 // ---------- boot ----------
 
-$('#stageName').textContent = stage().name;
-$('#stageBlurb').textContent = `${stage().blurb}. ${stage().levels.length} levels, and the orders get bigger as you go.`;
+if (save.stage > 0 && save.stage < STAGES.length && stageOpen(save.stage)) G.stage = save.stage;
 $('#soon').textContent = `Coming soon: ${COMING_SOON.join(' · ')}`;
 $('#build').textContent = `Build: ${BUILD}`;
 const standalone = window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches;
@@ -1012,11 +1119,13 @@ layout();
 toTitle();
 requestAnimationFrame(frame);
 loadArtOverrides(sprites, propSprites).then((art) => {
-  const file = art && art.stages && art.stages[stage().id] && art.stages[stage().id].backdrop;
-  if (!file) return;
-  const img = new Image();
-  img.onload = () => { stage().backdropImg = img; paintStatic(); };
-  img.src = 'assets/' + file;
+  for (const st of STAGES) {
+    const file = art && art.stages && art.stages[st.id] && art.stages[st.id].backdrop;
+    if (!file) continue;
+    const img = new Image();
+    img.onload = () => { st.backdropImg = img; if (st === stage()) paintStatic(); };
+    img.src = 'assets/' + file;
+  }
 });
 
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
@@ -1024,4 +1133,4 @@ if ('serviceWorker' in navigator && location.protocol === 'https:') {
 }
 
 // Handy for testing from the console.
-window.__topshelf = { tick: update, STAGES, G, T, V: () => V, DRINKS, sprites, save, launchAt(x) { G.aimX = x; launch(); }, PHYS, startLevel, shake, sound, propSprites };
+window.__topshelf = { tick: update, STAGES, G, T, V: () => V, DRINKS, sprites, save, launchAt(x) { G.aimX = x; launch(); }, PHYS, startLevel, setStage, shake, sound, propSprites };

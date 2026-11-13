@@ -522,6 +522,10 @@ export const PROPS = {
   shaker: { name: 'cocktail shaker', r: 5.6 },
   lantern: { name: 'candle lantern', r: 6.2 },
   bucket: { name: 'ice bucket', r: 9.6 },
+  chips: { name: 'poker chips', r: 5.8 },
+  dice: { name: 'dice', r: 7 },
+  // flat: drawn from above and spun by the game; fling: sideways speed it gives a drink
+  roulette: { name: 'roulette wheel', r: 11.5, flat: true, fling: 130 },
 };
 
 const STEEL = ['#8c9bb0', '#eef3f9', '#b9c5d4', '#f8fbff', '#93a2b6'];
@@ -623,6 +627,89 @@ const DRAW_PROP = {
     c.strokeStyle = INK; c.lineWidth = 5; c.stroke();
     shine(c, 44, 140, 204, 8);
   },
+
+  chips(c) {
+    const cols = ['#e03131', '#1c7ed6', '#2f9e44', '#e03131', '#1c7ed6', '#e03131'];
+    const hw = 62, th = 19;
+    for (let i = 0; i < cols.length; i++) {
+      const yb = 220 - i * th;
+      solid(c, [[hw, yb - th, 1], [hw, yb, 1]], cols[i], { rimK: 0.22, baseK: 0.22 });
+      c.fillStyle = '#ffffff';
+      for (const x of [-44, -14, 16, 46]) c.fillRect(CX + x - 6, yb - th + 6 + (hw - Math.abs(x)) * 0.16, 12, th - 5);
+    }
+    const ty = 220 - cols.length * th;
+    c.beginPath(); c.ellipse(CX, ty, hw - 1, (hw - 1) * 0.22, 0, 0, 7);
+    c.fillStyle = '#e03131'; c.fill();
+    c.lineWidth = 4.5; c.strokeStyle = INK; c.stroke();
+    c.beginPath(); c.ellipse(CX, ty, hw * 0.62, hw * 0.62 * 0.22, 0, 0, 7);
+    c.strokeStyle = '#ffffff'; c.lineWidth = 4; c.stroke();
+    shine(c, 48, ty + 16, 214, 6);
+  },
+
+  dice(c) {
+    const die = (x, y, s, body, pip, pips) => {
+      c.lineJoin = 'round';
+      c.lineWidth = 5; c.strokeStyle = INK;
+      c.beginPath();
+      c.moveTo(x, y); c.lineTo(x + s * 0.22, y - s * 0.28); c.lineTo(x + s * 1.22, y - s * 0.28); c.lineTo(x + s, y);
+      c.closePath();
+      c.fillStyle = body[1]; c.fill(); c.stroke();
+      c.beginPath();
+      c.moveTo(x + s, y); c.lineTo(x + s * 1.22, y - s * 0.28); c.lineTo(x + s * 1.22, y + s * 0.72); c.lineTo(x + s, y + s);
+      c.closePath();
+      c.fillStyle = body[2]; c.fill(); c.stroke();
+      rr(c, x, y, s, s, s * 0.14);
+      c.fillStyle = body[0]; c.fill(); c.stroke();
+      c.fillStyle = pip;
+      for (const [px, py] of pips) { c.beginPath(); c.arc(x + px * s, y + py * s, s * 0.085, 0, 7); c.fill(); }
+      c.beginPath(); c.ellipse(x + s * 0.72, y - s * 0.14, s * 0.09, s * 0.05, 0, 0, 7); c.fill();
+    };
+    die(92, 96, 74, ['#f8f9fa', '#ffffff', '#ced4da'], INK, [[0.28, 0.28], [0.72, 0.28], [0.5, 0.5], [0.28, 0.72], [0.72, 0.72]]);
+    die(24, 138, 82, ['#e03131', '#ff6b6b', '#a51111'], '#ffffff', [[0.3, 0.3], [0.5, 0.5], [0.7, 0.7]]);
+  },
+};
+
+// Flat obstacles are drawn from directly above as a circle; the game lays them on the
+// bar and spins them.
+const DRAW_FLAT = {
+  roulette(c, S) {
+    const R = S / 2, TAU = Math.PI * 2;
+    c.translate(R, R);
+    const disc = (r, fill, lw = 0) => {
+      c.beginPath(); c.arc(0, 0, r, 0, TAU);
+      c.fillStyle = fill; c.fill();
+      if (lw) { c.lineWidth = lw; c.strokeStyle = INK; c.stroke(); }
+    };
+    disc(R * 0.97, '#5a2d14', R * 0.035);
+    disc(R * 0.86, '#f2c94c', R * 0.02);
+    const n = 19;
+    for (let i = 0; i < n; i++) {
+      const a0 = (i / n) * TAU, a1 = ((i + 1) / n) * TAU;
+      c.beginPath();
+      c.arc(0, 0, R * 0.82, a0, a1);
+      c.arc(0, 0, R * 0.56, a1, a0, true);
+      c.closePath();
+      c.fillStyle = i === 0 ? '#2f9e44' : i % 2 ? '#e03131' : '#212529';
+      c.fill();
+      c.lineWidth = R * 0.014; c.strokeStyle = '#f2c94c'; c.stroke();
+    }
+    const cone = c.createRadialGradient(0, 0, R * 0.1, 0, 0, R * 0.56);
+    cone.addColorStop(0, '#a3602f');
+    cone.addColorStop(1, '#5a2d14');
+    disc(R * 0.56, cone, R * 0.02);
+    c.lineCap = 'round';
+    for (let k = 0; k < 4; k++) {
+      const a = k * Math.PI / 2 + 0.4;
+      c.beginPath(); c.moveTo(0, 0); c.lineTo(Math.cos(a) * R * 0.36, Math.sin(a) * R * 0.36);
+      c.strokeStyle = INK; c.lineWidth = R * 0.085; c.stroke();
+      c.strokeStyle = '#f2c94c'; c.lineWidth = R * 0.05; c.stroke();
+      c.beginPath(); c.arc(Math.cos(a) * R * 0.36, Math.sin(a) * R * 0.36, R * 0.055, 0, TAU);
+      c.fillStyle = '#f2c94c'; c.fill(); c.lineWidth = R * 0.018; c.strokeStyle = INK; c.stroke();
+    }
+    disc(R * 0.13, '#f2c94c', R * 0.025);
+    c.beginPath(); c.arc(Math.cos(1.1) * R * 0.69, Math.sin(1.1) * R * 0.69, R * 0.06, 0, TAU);
+    c.fillStyle = '#ffffff'; c.fill(); c.lineWidth = R * 0.018; c.strokeStyle = INK; c.stroke();
+  },
 };
 
 // ---------- sprites ----------
@@ -693,6 +780,13 @@ export function buildPropSprites(ss = 3) {
   const out = {};
   for (const kind of Object.keys(PROPS)) {
     const cv = document.createElement('canvas');
+    if (PROPS[kind].flat) {
+      const S = 128 * ss;
+      cv.width = cv.height = S;
+      DRAW_FLAT[kind](cv.getContext('2d'), S);
+      out[kind] = cv;
+      continue;
+    }
     cv.width = BOX.w * ss; cv.height = BOX.h * ss;
     const c = cv.getContext('2d');
     c.scale(ss, ss);
@@ -702,15 +796,20 @@ export function buildPropSprites(ss = 3) {
   return out;
 }
 
-// Stand an image on the standard footprint: trim it to its visible pixels, scale it so
-// it is as wide as the footprint (or as tall as the box allows), and sit its base down.
-async function spriteFromImage(file, widthK, edge, ss) {
+async function loadImage(file) {
   const img = new Image();
   img.src = 'assets/' + file;
   await img.decode();
   const raw = document.createElement('canvas');
   raw.width = img.naturalWidth; raw.height = img.naturalHeight;
   raw.getContext('2d').drawImage(img, 0, 0);
+  return raw;
+}
+
+// Stand an image on the standard footprint: trim it to its visible pixels, scale it so
+// it is as wide as the footprint (or as tall as the box allows), and sit its base down.
+async function spriteFromImage(file, widthK, edge, ss) {
+  const raw = await loadImage(file);
   const b = bounds(raw);
   const baseY = 226, topMin = 8;
   const k = Math.min((2 * BOX.fr * widthK) / b.w, (baseY - topMin) / b.h);
@@ -723,6 +822,18 @@ async function spriteFromImage(file, widthK, edge, ss) {
   return finish(edge ? sticker(cv, 4.5 * ss) : cv, ss);
 }
 
+// A top-down image of a flat obstacle: trim it and centre it in a square.
+async function discFromImage(file, ss) {
+  const raw = await loadImage(file);
+  const b = bounds(raw), S = 128 * ss, k = S / Math.max(b.w, b.h);
+  const cv = document.createElement('canvas');
+  cv.width = cv.height = S;
+  const c = cv.getContext('2d');
+  c.imageSmoothingQuality = 'high';
+  c.drawImage(raw, b.x, b.y, b.w, b.h, (S - b.w * k) / 2, (S - b.h * k) / 2, b.w * k, b.h * k);
+  return cv;
+}
+
 // Optional swap-in art: assets/art.json lists PNGs that replace the built-in drawings
 // of drinks ("drinks") and obstacles ("props"). Returns the parsed file, or null.
 export async function loadArtOverrides(sprites, props, ss = 3) {
@@ -733,14 +844,22 @@ export async function loadArtOverrides(sprites, props, ss = 3) {
     art = await res.json();
   } catch { return null; }
   const jobs = [];
-  const want = (entry, put) => {
+  const keep = () => { /* keep the built-in drawing */ };
+  DRINKS.forEach((d, i) => {
+    const entry = (art.drinks || {})[d.id];
     if (!entry) return;
     const file = typeof entry === 'string' ? entry : entry.file;
     const widthK = (typeof entry === 'object' && entry.width) || 1.0;
-    jobs.push(spriteFromImage(file, widthK, art.sticker !== false, ss).then(put).catch(() => { /* keep the built-in drawing */ }));
-  };
-  DRINKS.forEach((d, i) => want((art.drinks || {})[d.id], (cv) => { sprites[i] = cv; }));
-  for (const kind of Object.keys(PROPS)) want((art.props || {})[kind], (cv) => { props[kind] = cv; });
+    jobs.push(spriteFromImage(file, widthK, art.sticker !== false, ss).then((cv) => { sprites[i] = cv; }).catch(keep));
+  });
+  for (const kind of Object.keys(PROPS)) {
+    const entry = (art.props || {})[kind];
+    if (!entry) continue;
+    const file = typeof entry === 'string' ? entry : entry.file;
+    const widthK = (typeof entry === 'object' && entry.width) || 1.0;
+    const job = PROPS[kind].flat ? discFromImage(file, ss) : spriteFromImage(file, widthK, art.sticker !== false, ss);
+    jobs.push(job.then((cv) => { props[kind] = cv; }).catch(keep));
+  }
   await Promise.all(jobs);
   return art;
 }
