@@ -275,8 +275,15 @@ function deal() {
   // Regular deals stay below the smallest drink on this level's order list (unless the
   // level sets its own range), so everything on an order has to be made by merging.
   const lo = G.dealLo, hi = G.dealHi;
-  // A rare bigger drink for variety. If it happens to match the order, lucky you.
-  if (Math.random() < 0.045) return Math.min(DRINKS.length - 2, hi + (Math.random() < 0.2 ? 2 : 1));
+  // A rare bigger drink for variety, but never the drink on the current order: that
+  // would be a free serve.
+  if (Math.random() < 0.045) {
+    const now = targetTier();
+    const pick = [hi + (Math.random() < 0.2 ? 2 : 1), hi + 1, hi + 2]
+      .map((t) => Math.min(DRINKS.length - 2, t))
+      .find((t) => t !== now);
+    if (pick !== undefined) return pick;
+  }
   const weights = [34, 30, 22, 14, 10].slice(0, hi - lo + 1);
   let roll = Math.random() * weights.reduce((s, v) => s + v, 0);
   for (let i = 0; i < weights.length; i++) {
@@ -410,6 +417,10 @@ function deliver(tier, x, y) {
   order.jackpot = !!order.high && !order.missed;
   G.orderIdx++;
   G.highLeft = G.orders[G.orderIdx] ? G.orders[G.orderIdx].high : 0;
+  // A bigger drink dealt earlier may now match the new order; swap it for a regular one.
+  const now = targetTier();
+  if (G.next === now) G.next = deal();
+  if (G.held && G.held.tier === now) G.held = { tier: deal(), born: G.time };
   G.serveGate = G.time + 0.6;
   if (G.orderIdx >= G.orders.length) { G.mode = 'clearing'; G.held = null; G.aiming = false; show(null); }
   const p = proj(x, y), rpx = DRINKS[tier].r * V.ppu * p.s, tk = V.cur;

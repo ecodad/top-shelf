@@ -114,6 +114,9 @@ export const STAGES = [
     // "fail" is where the "bar is full" line sits (0 = far end, 132 = player's end):
     // a smaller number means less room, which is the main difficulty dial besides
     // bigger drinks. Optional per level: shakes (default 3).
+    // Placing obstacles: one beside a wall sits part-way down the bar and about 3 units
+    // off the wall (a third of the smallest drink), never in a back corner. Any gap a
+    // drink could enter must be wider than the level's biggest drink.
     // Optional per level: props (obstacles on the bar: kind is shaker, lantern or bucket,
     // x across 0-100, y from the far end), note (shown under the level banner).
     levels: [
@@ -125,7 +128,7 @@ export const STAGES = [
       { orders: [4, 3, 5, 4, 5, 3, 5], fail: 72, note: 'Lantern left, shaker right',
         props: [{ kind: 'lantern', x: 30, y: 48 }, { kind: 'shaker', x: 70, y: 32 }] },
       { orders: [4, 5, 4, 6, 5, 4, 6], fail: 68, note: 'A crowded bar tonight',
-        props: [{ kind: 'bucket', x: 50, y: 34 }, { kind: 'shaker', x: 7, y: 7 }, { kind: 'lantern', x: 93, y: 8 }] },
+        props: [{ kind: 'bucket', x: 50, y: 34 }, { kind: 'shaker', x: 8.6, y: 56 }, { kind: 'lantern', x: 90.8, y: 20 }] },
     ],
     song: JAZZ,
     accent: '#ff4fa3',
@@ -197,9 +200,9 @@ export const STAGES = [
       { orders: [5, 6, 5, 7, 6], fail: 78, deal: [1, 4], note: 'The wheel flings drinks left',
         high: [3, 12], props: [{ kind: 'roulette', x: 50, y: 40, spin: 1 }] },
       { orders: [6, 7, 6, 7, 6, 7], fail: 76, deal: [2, 5], note: 'This wheel spins the other way',
-        high: [1, 10], props: [{ kind: 'roulette', x: 42, y: 42, spin: -1 }, { kind: 'chips', x: 93, y: 8 }] },
+        high: [1, 10], props: [{ kind: 'roulette', x: 42, y: 42, spin: -1 }, { kind: 'chips', x: 91.2, y: 30 }] },
       { orders: [6, 7, 6, 8, 7, 6], fail: 80, deal: [2, 5], note: 'High stakes: the Mai Tai',
-        high: [3, 12], props: [{ kind: 'roulette', x: 50, y: 38, spin: 1 }, { kind: 'dice', x: 8, y: 8 }, { kind: 'chips', x: 93, y: 7 }] },
+        high: [3, 12], props: [{ kind: 'roulette', x: 50, y: 38, spin: 1 }, { kind: 'dice', x: 10, y: 62 }, { kind: 'chips', x: 91.2, y: 20 }] },
     ],
     song: VEGAS,
     accent: '#ffd43b',
