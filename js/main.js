@@ -20,6 +20,10 @@ const easeOut = (t) => 1 - Math.pow(1 - t, 3);
 const easeInOut = (t) => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2);
 const easeBack = (t) => 1 + 2.7 * Math.pow(t - 1, 3) + 1.7 * Math.pow(t - 1, 2);
 
+// Running from the home screen (installed) rather than in a browser tab?
+const standalone = window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches;
+const IOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
+
 const canvas = $('#game');
 const ctx = canvas.getContext('2d');
 const sound = new Sound();
@@ -71,7 +75,15 @@ function insets() {
 
 function layout() {
   const dpr = Math.min(window.devicePixelRatio || 1, 3);
-  const w = window.innerWidth, h = window.innerHeight;
+  const w = window.innerWidth;
+  let h = window.innerHeight;
+  // An installed iPhone app reports a height that is short by the status bar, which
+  // left a dead strip along the bottom of the screen. Use the real screen height there.
+  if (standalone && IOS && window.screen && screen.width === w) {
+    const gap = screen.height - h;
+    if (gap > 0 && gap < 90) h = screen.height;
+  }
+  document.documentElement.style.setProperty('--app-h', `${h}px`);
   canvas.width = Math.round(w * dpr);
   canvas.height = Math.round(h * dpr);
   const ins = insets();
@@ -1112,8 +1124,7 @@ window.addEventListener('orientationchange', () => setTimeout(layout, 200));
 if (save.stage > 0 && save.stage < STAGES.length && stageOpen(save.stage)) G.stage = save.stage;
 $('#soon').textContent = `Coming soon: ${COMING_SOON.join(' · ')}`;
 $('#build').textContent = `Build: ${BUILD}`;
-const standalone = window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches;
-if (!standalone && /iPhone|iPad|iPod/.test(navigator.userAgent)) $('#a2hs').hidden = false;
+if (!standalone && IOS) $('#a2hs').hidden = false;
 
 layout();
 toTitle();

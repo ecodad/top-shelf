@@ -5,16 +5,16 @@
 export const BOX = { w: 200, h: 250, ax: 100, ay: 192, fr: 78 };
 
 export const DRINKS = [
-  { id: 'tequila_shot', name: 'Tequila Shot', r: 5.3 },
-  { id: 'whiskey_neat', name: 'Whiskey Neat', r: 6.8 },
-  { id: 'gin_tonic', name: 'Gin & Tonic', r: 8.4 },
-  { id: 'mojito', name: 'Mojito', r: 10.1 },
-  { id: 'cosmopolitan', name: 'Cosmopolitan', r: 12.1 },
-  { id: 'margarita', name: 'Margarita', r: 14.3 },
-  { id: 'blue_hawaiian', name: 'Blue Hawaiian', r: 16.7 },
-  { id: 'pina_colada', name: 'Piña Colada', r: 19.3 },
-  { id: 'mai_tai', name: 'Mai Tai', r: 22.1 },
-  { id: 'scorpion_bowl', name: 'Scorpion Bowl', r: 25.3 },
+  { id: 'tequila_shot', name: 'Tequila Shot', r: 5.0 },
+  { id: 'whiskey_neat', name: 'Whiskey Neat', r: 6.0 },
+  { id: 'gin_tonic', name: 'Gin & Tonic', r: 7.0 },
+  { id: 'mojito', name: 'Mojito', r: 8.0 },
+  { id: 'cosmopolitan', name: 'Cosmopolitan', r: 9.0 },
+  { id: 'margarita', name: 'Margarita', r: 10.0 },
+  { id: 'blue_hawaiian', name: 'Blue Hawaiian', r: 11.0 },
+  { id: 'pina_colada', name: 'Piña Colada', r: 12.0 },
+  { id: 'mai_tai', name: 'Mai Tai', r: 13.2 },
+  { id: 'scorpion_bowl', name: 'Scorpion Bowl', r: 14.5 },
 ];
 
 const INK = '#1b1f45';
