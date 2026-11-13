@@ -28,14 +28,19 @@ directly from disk will not load the scripts.
   drinks; later levels and stages add the bigger ones and leave less room on the bar.
 - Regular deals are always smaller than the smallest drink on the level's order list.
   About one slide in twenty-two is a bigger drink instead.
-- A freshly slid drink hits like a heavy puck, so an off-centre hit knocks others aside.
+- The bar is level and drinks behave like pool balls without spin: a slid drink travels
+  in a straight line, slows steadily, and trades momentum with whatever it hits. Bigger
+  drinks are somewhat heavier. Nothing pulls drinks toward the far end.
+- The one exception is the launch area behind the dashed line. It slopes gently back
+  onto the bar, like a ball return, so a drink that bounces back toward you is not
+  stranded there.
 - Obstacles (a cocktail shaker, a candle lantern, an ice bucket) sit on the bar from
   level 2 on. They never move and drinks bounce off them, so they block lanes and
   take up room.
-- Shake (three per level) jolts every drink toward you and sideways. They settle in a
-  new arrangement, which is the way to free a glass stuck between two others.
-- If a drink comes to rest past the dashed line and stays there for three seconds, the
-  level ends. Coins are kept, and you retry the same level.
+- Shake (three per level) sends every drink off in a random direction, like a pool
+  break. It is the way to free a glass stuck between two others.
+- If a drink is held past the dashed line by the drinks in front of it for three
+  seconds, the bar is full and the level ends. Coins are kept, and you retry the same level.
 
 ## Layout
 
@@ -56,7 +61,8 @@ directly from disk will not load the scripts.
 ## Tuning
 
 - Drink sizes: `DRINKS` in `js/drinks.js`.
-- Table length and launch speed: the constants at the top of `js/main.js`.
+- Table length, and the feel of the bar (`PHYS`: slide speed, friction, bounciness, how
+  much weight grows with size, launch-area slope): the constants at the top of `js/main.js`.
 - Levels per stage (order lists, where the "full" line sits, obstacles, shakes): `STAGES` in `js/stages.js`.
 - Obstacle sizes: `PROPS` in `js/drinks.js`. Leave gaps between obstacles and walls either
   wide enough for the level's biggest drink or closed; a narrow gap traps drinks.

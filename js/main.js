@@ -5,7 +5,8 @@ import { Sound } from './audio.js';
 
 // Table space: 100 wide, 132 long. y = 0 is the far end; FAIL is the "bar is full" line.
 const T = { W: 100, L: 132, FAIL: 92, LAUNCH: 115 };
-const LAUNCH_SPEED = 215;
+// Feel of the bar: slide speed, how fast drinks slow down, and how bouncy things are.
+const PHYS = { speed: 215, friction: 150, rest: 0.8, restWall: 0.6, restFixed: 0.5, massPow: 1, zonePull: 280 };
 const DANGER_SECONDS = 3;
 const FONT = '"Avenir Next", "Nunito", "Segoe UI", system-ui, sans-serif';
 const INK = '#1b1f45';
@@ -241,7 +242,8 @@ function startLevel(n = G.level) {
   const fail = lv.fail ?? 92;
   if (fail !== T.FAIL) { T.FAIL = fail; paintStatic(); }
   G.shakeCd = 0; G.shakeFx = 0; G.dangerHold = 0; G.serveGate = 0;
-  G.world = new World(T.W, T.L);
+  G.world = new World(T.W, T.L, PHYS);
+  G.world.zoneY = T.FAIL;
   G.world.onMerge = onMerge;
   G.world.onImpact = (speed, a, b) => {
     if (speed <= 30) return;
@@ -264,8 +266,9 @@ function startLevel(n = G.level) {
   sound.startMusic(stage().song);
 }
 
-// Give the whole bar a jolt: every drink hops toward the player and sideways, then
-// settles back in a new arrangement. The way to free a glass stuck between two others.
+// Give the whole bar a jolt: every drink scoots off in a random direction (leaning
+// toward the far end) and they knock into each other like a pool break. The way to
+// free a glass stuck between two others.
 function shake() {
   if (G.mode !== 'play' || G.shakes <= 0 || G.shakeCd > 0 || !G.world.bodies.some((b) => !b.fixed)) return;
   G.shakes--;
@@ -275,8 +278,9 @@ function shake() {
   for (const b of G.world.bodies) {
     if (b.fixed) continue;
     b.sliding = false;
-    b.vy += 110 + Math.random() * 130;
-    b.vx += (Math.random() - 0.5) * 300;
+    const ang = Math.random() * Math.PI * 2, sp = 90 + Math.random() * 90;
+    b.vx += Math.cos(ang) * sp;
+    b.vy += Math.sin(ang) * sp - 45;
   }
   sound.rattle();
   syncShake();
@@ -294,7 +298,7 @@ function launch() {
   const d = DRINKS[G.held.tier];
   G.world.add({
     tier: G.held.tier, x: clamp(G.aimX, d.r, T.W - d.r), y: T.LAUNCH,
-    vx: 0, vy: -LAUNCH_SPEED, r: d.r, sliding: true, heavy: 0.2, born: -9,
+    vx: 0, vy: -PHYS.speed, r: d.r, sliding: true, born: -9,
   });
   G.held = null;
   G.queued = false;
@@ -326,7 +330,7 @@ function onMerge(a, b) {
   // Start small and swell to full size: a full-size drink appearing between its
   // neighbours would shove them away violently.
   const nr = DRINKS[tier].r, r0 = Math.max(a.r, b.r) * 0.35;
-  return { tier, x, y, vx: (a.vx + b.vx) / 2, vy: (a.vy + b.vy) / 2, r: r0, rT: nr, grow: (nr - r0) / 0.2, born: G.time };
+  return { tier, x, y, vx: (a.vx * ma + b.vx * mb) / (ma + mb), vy: (a.vy * ma + b.vy * mb) / (ma + mb), r: r0, rT: nr, grow: (nr - r0) / 0.2, born: G.time };
 }
 
 function deliver(tier, x, y) {
@@ -1018,4 +1022,4 @@ if ('serviceWorker' in navigator && location.protocol === 'https:') {
 }
 
 // Handy for testing from the console.
-window.__topshelf = { tick: update, STAGES, G, T, V: () => V, DRINKS, sprites, save, launchAt(x) { G.aimX = x; launch(); }, startLevel, shake, sound, propSprites };
+window.__topshelf = { tick: update, STAGES, G, T, V: () => V, DRINKS, sprites, save, launchAt(x) { G.aimX = x; launch(); }, PHYS, startLevel, shake, sound, propSprites };

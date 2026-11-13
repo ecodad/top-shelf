@@ -1,18 +1,30 @@
-// Tiny position-based physics for round drink bases sliding on a bar top.
+// Pool-table physics for round drink bases on a flat bar top: no spin, no slope.
 // Table space: x in [0, W], y in [0, L]; y = 0 is the far end, y = L is the player's end.
-// A gentle pull toward the far end keeps the pile packed, like a bar that slopes away from you.
-// Bodies marked `fixed` are obstacles: they never move, never merge, and drinks bounce off them.
+//
+// - A drink keeps moving in a straight line and slows at a steady rate (felt-like friction).
+// - Two drinks that touch exchange momentum like pool balls; heavier (bigger) drinks are
+//   harder to move. `rest` is how much of the bounce survives (1 = perfectly elastic).
+// - Walls and obstacles bounce drinks back. Bodies marked `fixed` are obstacles: they
+//   never move and never merge.
+// - `gravity` is an optional pull toward the far end. It is 0 by default (a level bar).
+// - Only the launch area behind `zoneY` slopes, to hand stray drinks back to the bar.
 
 export class World {
   constructor(W, L, opt = {}) {
     this.W = W;
     this.L = L;
     this.bodies = [];
-    this.gravity = opt.gravity ?? 160;
-    this.damp = opt.damp ?? 1.4;
-    this.rest = opt.rest ?? 0.3;
-    this.restFixed = opt.restFixed ?? 0.55;
-    this.maxSpeed = 250;
+    this.friction = opt.friction ?? 150;     // steady slow-down, table units per second squared
+    this.rest = opt.rest ?? 0.8;             // drink on drink
+    this.restWall = opt.restWall ?? 0.6;     // drink on wall
+    this.restFixed = opt.restFixed ?? 0.5;   // drink on obstacle
+    this.gravity = opt.gravity ?? 0;
+    this.massPow = opt.massPow ?? 1;         // mass = radius ^ massPow (0 = all equal, like pool balls)
+    // The launch area behind the "full" line slopes gently back onto the bar, like a ball
+    // return, so a drink that bounces back toward the player is not stranded there.
+    this.zoneY = opt.zoneY ?? Infinity;
+    this.zonePull = opt.zonePull ?? 280;
+    this.maxSpeed = 320;
     this.onMerge = null;   // (a, b) => new body spec or null
     this.onImpact = null;  // (speed, a, b|null)
     this._id = 1;
@@ -36,36 +48,29 @@ export class World {
     for (const b of this.bodies) {
       b.age += dt;
       if (b.r < b.rT) b.r = Math.min(b.rT, b.r + b.grow * dt);
-      if (b.heavy > 0 && !b.sliding) b.heavy -= dt;
     }
     const SUB = 4;
     for (let s = 0; s < SUB; s++) this._sub(dt / SUB);
   }
 
   _sub(h) {
-    const B = this.bodies, n = B.length, W = this.W;
-    const k = Math.exp(-this.damp * h);
+    const B = this.bodies, n = B.length, W = this.W, L = this.L;
+    const slow = this.friction * h;
 
     for (const b of B) {
-      if (b.fixed) {
-        b.px = b.x; b.py = b.y; b.vx = b.vy = b.pvx = b.pvy = 0;
-        continue;
-      }
-      if (!b.sliding) {
-        b.vy -= this.gravity * h;
-        b.vx *= k;
-        b.vy *= k;
-      }
-      const sp = Math.hypot(b.vx, b.vy);
-      if (sp > this.maxSpeed) { b.vx *= this.maxSpeed / sp; b.vy *= this.maxSpeed / sp; }
-      b.px = b.x; b.py = b.y; b.pvx = b.vx; b.pvy = b.vy;
+      if (b.fixed) { b.vx = b.vy = 0; continue; }
+      if (this.gravity) b.vy -= this.gravity * h;
+      if (b.y + b.r > this.zoneY) b.vy -= this.zonePull * h;
+      let sp = Math.hypot(b.vx, b.vy);
+      if (sp > this.maxSpeed) { b.vx *= this.maxSpeed / sp; b.vy *= this.maxSpeed / sp; sp = this.maxSpeed; }
+      if (sp <= slow) { b.vx = b.vy = 0; b.sliding = false; }
+      else { const k = (sp - slow) / sp; b.vx *= k; b.vy *= k; }
       b.x += b.vx * h;
       b.y += b.vy * h;
     }
 
     const merges = [];
-    const contacts = [];
-    for (let it = 0; it < 5; it++) {
+    for (let it = 0; it < 3; it++) {
       for (let i = 0; i < n; i++) {
         const a = B[i];
         if (a.dead) continue;
@@ -81,58 +86,42 @@ export class World {
             break;
           }
           const d = Math.sqrt(d2) || 0.001;
-          const nx = dx / d, ny = dy / d, pen = rr - d;
-          // A freshly slid drink hits like a heavier puck, so it can knock others aside.
-          const ma = a.r * a.r * (a.heavy > 0 ? 2.5 : 1), mb = b.r * b.r * (b.heavy > 0 ? 2.5 : 1);
-          const wa = a.fixed ? 0 : b.fixed ? 1 : mb / (ma + mb), wb = 1 - wa;
+          const nx = dx / d, ny = dy / d;
+          // inverse masses: bigger drinks are somewhat heavier; obstacles are immovable
+          const ia = a.fixed ? 0 : 1 / Math.pow(a.r, this.massPow), ib = b.fixed ? 0 : 1 / Math.pow(b.r, this.massPow);
+          const vn = (b.vx - a.vx) * nx + (b.vy - a.vy) * ny;
+          if (vn < 0) {
+            const e = a.fixed || b.fixed ? this.restFixed : this.rest;
+            const jn = (-(1 + e) * vn) / (ia + ib);
+            a.vx -= jn * ia * nx; a.vy -= jn * ia * ny;
+            b.vx += jn * ib * nx; b.vy += jn * ib * ny;
+            this.onImpact?.(-vn, a, b);
+          }
+          // separate them so they never overlap
+          const pen = rr - d, wa = ia / (ia + ib), wb = ib / (ia + ib);
           a.x -= nx * pen * wa; a.y -= ny * pen * wa;
           b.x += nx * pen * wb; b.y += ny * pen * wb;
-          if (a.fixed || b.fixed) {
-            // A drink sitting dead centre on an obstacle would balance there forever.
-            if (Math.abs(nx) < 0.03) (a.fixed ? b : a).x += (Math.random() - 0.5) * 0.06;
-          }
-          if (it === 0) contacts.push([a, b, nx, ny, wa, wb]);
           a.sliding = b.sliding = false;
         }
       }
+      const e = this.restWall;
       for (const b of B) {
         if (b.dead || b.fixed) continue;
-        if (b.x < b.r) b.x = b.r;
-        else if (b.x > W - b.r) b.x = W - b.r;
-        if (b.y < b.r) { b.y = b.r; b.sliding = false; }
-        else if (b.y > this.L - b.r) b.y = this.L - b.r;
+        if (b.x < b.r) {
+          b.x = b.r;
+          if (b.vx < 0) { if (b.vx < -22) this.onImpact?.(-b.vx * 0.6, b, null); b.vx = -e * b.vx; b.sliding = false; }
+        } else if (b.x > W - b.r) {
+          b.x = W - b.r;
+          if (b.vx > 0) { if (b.vx > 22) this.onImpact?.(b.vx * 0.6, b, null); b.vx = -e * b.vx; b.sliding = false; }
+        }
+        if (b.y < b.r) {
+          b.y = b.r;
+          if (b.vy < 0) { if (b.vy < -22) this.onImpact?.(-b.vy * 0.6, b, null); b.vy = -e * b.vy; b.sliding = false; }
+        } else if (b.y > L - b.r) {
+          b.y = L - b.r;
+          if (b.vy > 0) { b.vy = -e * b.vy; b.sliding = false; }
+        }
       }
-    }
-
-    for (const b of B) {
-      if (b.dead || b.fixed) continue;
-      b.vx = (b.x - b.px) / h;
-      b.vy = (b.y - b.py) / h;
-      // Squeezed-out drinks should scoot, not teleport.
-      const sp = Math.hypot(b.vx, b.vy);
-      if (sp > this.maxSpeed) { b.vx *= this.maxSpeed / sp; b.vy *= this.maxSpeed / sp; }
-    }
-
-    // A little bounce so glasses clink instead of thudding; obstacles are springier.
-    for (const [a, b, nx, ny, wa, wb] of contacts) {
-      if (a.dead || b.dead) continue;
-      const pre = (b.pvx - a.pvx) * nx + (b.pvy - a.pvy) * ny;
-      if (pre > -22) continue;
-      const e = a.fixed || b.fixed ? this.restFixed : this.rest;
-      const cur = (b.vx - a.vx) * nx + (b.vy - a.vy) * ny;
-      const dv = -e * pre - cur;
-      if (dv > 0) {
-        a.vx -= nx * dv * wa; a.vy -= ny * dv * wa;
-        b.vx += nx * dv * wb; b.vy += ny * dv * wb;
-      }
-      this.onImpact?.(-pre, a, b);
-    }
-    const e = this.rest;
-    for (const b of B) {
-      if (b.dead || b.fixed) continue;
-      if (b.x <= b.r + 1e-6 && b.pvx < -22) { b.vx = -e * b.pvx; this.onImpact?.(-b.pvx * 0.6, b, null); }
-      else if (b.x >= W - b.r - 1e-6 && b.pvx > 22) { b.vx = -e * b.pvx; this.onImpact?.(b.pvx * 0.6, b, null); }
-      if (b.y <= b.r + 1e-6 && b.pvy < -22) { b.vy = -e * 0.6 * b.pvy; this.onImpact?.(-b.pvy * 0.6, b, null); }
     }
 
     if (merges.length) {
